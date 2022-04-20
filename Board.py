@@ -1,5 +1,5 @@
 # Implementation of the Feudal board game with some move restriction
-# Test commit message.
+# Test commit message from command line.
 class Board():
     def __init__(self):
         self.rough = set()
