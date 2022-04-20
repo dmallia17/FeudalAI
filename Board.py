@@ -1,5 +1,5 @@
 # Implementation of the Feudal board game with some move restriction
-# Test commit message from command line.
+
 class Board():
     def __init__(self):
         self.rough = set()
@@ -9,8 +9,8 @@ class Board():
         self.brown_pieces = dict() # MAY BE REVISED
         self.brown_pieces_locations = dict()
         # Tuple of tuples, first is green, second is interior
-        self.blue_castle = None
-        self.brown_castle = None
+        self.blue_castle = [(0,0),(0,1)]
+        self.brown_castle = [(10,0),(10,1)]
 
     # Return a clone of the Board instance, only copying the piece dictionaries
     # TODO: MAKE SURE ALL CLASS MEMBERS ARE CLONED PROPERLY HERE
@@ -42,38 +42,44 @@ class Board():
     # TODO: ADD RENDERING OF ALL PIECES - DAN
     # Print board to terminal
     def display(self):
-        #cTemp = "\x1b[%dm%7s\x1b[0m "
-        #\u001b[4m
-        print("     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 ")
+      
+        # Format strings.
+        display_str = "\x1b[%dm\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m"
+        board_nums1 = "     0  1  2  3  4  5  6  7  8  9 "
+        board_nums2 = "10 11 12 13 14 15 16 17 18 19 20 21 22 23 "
+
+        print(board_nums1 + board_nums2)
         for i in range(24):
             print(str(i).ljust(2, " ") + "| ", end="")
             for j in range(24):
-                # Print terrain, if relevant
                 # CYAN == CASTLE GREEN
-                if (i,j) == self.brown_castle[0] or (i,j) == self.blue_castle[0]:
-                    print("\x1b[46m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                if (i,j) in [self.brown_castle[0], self.blue_castle[0]]:
+                    print(display_str % 46, end="")
                 # RED == CASTLE INTERIOR
-                elif (i,j) == self.brown_castle[1] or (i,j) == self.blue_castle[1]:
-                    print("\x1b[41m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                elif (i,j) in [self.brown_castle[1], self.blue_castle[1]]:
+                    print(display_str % 41, end="")
                 # ROUGH == WHITE
                 elif (i,j) in self.rough:
-                    print("\x1b[47m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                    print(display_str % 47, end="")
                 # MOUNTAIN == GREEN
                 elif (i,j) in self.mountains:
-                    print("\x1b[42m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                    print(display_str % 42, end="")
 
+                # TODO: ADD PIECE RENDERING CONDITIONAL HERE.
+
+                # EMPTY TERRAIN == BROWN/GREY.
                 else:
-                    print("\x1b[100m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
-
-                # Print piece, if relevant
-
+                    print(display_str % 100, end="")
             print("|"+str(i))
-
-        print("     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 ")
-
+        print(board_nums1 + board_nums2)
 
     # FOR DEBUGGING HELP
     def display_piece_options(self, piece):
+        
+        # Format strings.
+        board_nums1 = "     0  1  2  3  4  5  6  7  8  9 "
+        board_nums2 = "10 11 12 13 14 15 16 17 18 19 20 21 22 23 "
+
         if piece.color == "blue":
             friendlies = self.blue_pieces_locations
             opponents = self.brown_pieces_locations
@@ -86,9 +92,8 @@ class Board():
         new_locs = list(piece.getMoves(self.clone(), friendlies, opponents))
         curr_loc = piece.location
 
-        #cTemp = "\x1b[%dm%7s\x1b[0m "
-        #\u001b[4m
-        print("     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 ")
+        print(board_nums1 + board_nums2)
+
         for i in range(24):
             print(str(i).ljust(2, " ") + "| ", end="")
             for j in range(24):
@@ -110,10 +115,8 @@ class Board():
                         print("\x1b[100m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
 
                 # Print piece, if relevant
-
             print("|"+str(i))
-
-        print("     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 ")
+        print(board_nums1 + board_nums2)
 
     def gameover(self, ):
         pass
@@ -127,8 +130,6 @@ class Board():
     # consequences of a move
     def getAllMoves(self, ):
         pass
-
-
 
 class Piece():
     def __init__(self, name, number, color, location):
@@ -151,42 +152,52 @@ class King(Piece):
     def __le__(self, other):
         return True
 
-    # TO-DO: ACCOUNT FOR CASTLE DYNAMICS
+    # TO-DO: TEST CASTLE DYNAMICS
     def getMoves(self, board, friendly_locs, opponent_locs):
-        on_green = (self.location == board.blue_castle[0] or \
-            self.location == board.brown_castle[0])
-        for direction in [(-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1),(-1,-1)]:
+        on_green = (self.location == board.blue_castle[0]   or 
+                    self.location == board.brown_castle[0])
+        
+        directions = [(-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1),(-1,-1)]
+        for direction in directions:
             for multiplier in [1,2]:
-                new_loc = (self.location[0] + direction[0]*multiplier,
-                    self.location[1] + direction[1]*multiplier)
+                new_loc = ( self.location[0] + direction[0]*multiplier,
+                            self.location[1] + direction[1]*multiplier)
+                print(multiplier)                
                 # Check location on board
-                if new_loc[0] >= 0 and new_loc[0] <= 23 and \
-                    new_loc[1] >= 0 and new_loc[1] <= 23:
-
-                    # Entering castle green
-                    if new_loc == board.blue_castle[0] or board.brown_castle[0]:
-                        yield new_loc
-                        break
-
-                    # Attempting to enter castle interior
-                    if on_green and (new_loc == board.blue_castle[1] or board.brown_castle[1]):
-                        yield new_loc
-                        break
-                    elif (not on_green) and (new_loc == board.blue_castle[1] or board.brown_castle[1]):
-                        break
-
+                if (new_loc[0] >= 0 and 
+                    new_loc[0] <= 23 and 
+                    new_loc[1] >= 0  and 
+                    new_loc[1] <= 23):
+                    
                     # Check if a mountain has been hit or a friendly piece
-                    if new_loc in board.mountains or \
-                        new_loc in friendly_locs.values():
+                    if (new_loc in board.mountains or 
+                        new_loc in friendly_locs.values()):
+                        break
+                    
+                    # Entering castle green
+                    if (new_loc == board.blue_castle[0] or 
+                        new_loc == board.brown_castle[0]):
+                        yield new_loc
+                        break
+                    
+                    # Attempting to enter castle interior
+                    if  (on_green and 
+                            (new_loc == board.blue_castle[1] or 
+                            board.brown_castle[1])):
+                        yield new_loc
+                        break
+                    
+                    elif (not on_green and 
+                            (new_loc == board.blue_castle[1] or 
+                             new_loc == board.brown_castle[1])):
                         break
 
                     # Check if an opponent has been hit
                     if new_loc in opponent_locs.values():
                         yield new_loc
                         break
-
+                    print('here')
                     yield new_loc
-
 
 class Mounted(Piece):
     # DAN
