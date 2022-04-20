@@ -9,6 +9,8 @@ class Board():
         self.brown_pieces = dict() # MAY BE REVISED
         self.brown_pieces_locations = dict()
         # Tuple of tuples, first is green, second is interior
+        # TODO: These are temporarily fixed coordinates (until piece placement
+        #       is implemented).
         self.blue_castle = [(0,0),(0,1)]
         self.brown_castle = [(10,0),(10,1)]
 
@@ -132,13 +134,29 @@ class Board():
         pass
 
 class Piece():
-    def __init__(self, name, number, color, location):
+    def __init__(self, name, number, color, location, rank):
         if color == "blue":
             self.rep = "\x1b[94m" + name + str(number) + "\x1b[97m"
         else:
             self.rep = "\x1b[33m" + name + str(number) + "\x1b[97m"
-        self.location = location
+        self.name = name
+        self.number = number
         self.color = color
+        self.location = location
+        self.rank = rank
+
+    def __le__(self, other):
+        if self.rank < other.rank:
+            return True
+        elif self.rank == other.rank:
+            if self.location[1] < other.location[1]:
+                return True
+            elif self.location[1] == other.location[1]:
+                return (self.number < other.number)
+            else:
+                return False
+        else:
+            return False
 
     def __str__(self):
         return self.rep
@@ -146,13 +164,9 @@ class Piece():
 
 class King(Piece):
     def __init__(self, color, location):
-        super().__init__("KG", "", color, location)
-        self.num = 1
+        super().__init__("KG", "", color, location, 1)
 
-    def __le__(self, other):
-        return True
-
-    # TO-DO: TEST CASTLE DYNAMICS
+    # TODO: TEST CASTLE DYNAMICS
     def getMoves(self, board, friendly_locs, opponent_locs):
         on_green = (self.location == board.blue_castle[0]   or 
                     self.location == board.brown_castle[0])
@@ -186,7 +200,7 @@ class King(Piece):
                             board.brown_castle[1])):
                         yield new_loc
                         break
-                    
+                    # Attempting to enter castle illegaly.                    
                     elif (not on_green and 
                             (new_loc == board.blue_castle[1] or 
                              new_loc == board.brown_castle[1])):
@@ -196,114 +210,48 @@ class King(Piece):
                     if new_loc in opponent_locs.values():
                         yield new_loc
                         break
-                    print('here')
                     yield new_loc
 
 class Mounted(Piece):
     # DAN
+
+    def __init__(self, name, number, color, location, rank):
+        super().__init__(name, number, color, location, rank)
+
     def getMoves(self):
         pass
 
 
 class Prince(Mounted):
     def __init__(self, color, location):
-        super().__init__("PR", "", color, location)
-        self.num = 2
-
-    def __le__(self, other):
-        if self.num < other.num:
-            return True
-        else:
-            return False
+        super().__init__("PR", "", color, location, 2)
 
 class Duke(Mounted):
     def __init__(self, color, location):
-        super().__init__("D", "", color, location)
-        self.num = 3
+        super().__init__("DK", "", color, location, 3)
     
-    def __le__(self, other):
-        if self.num < other.num:
-            return True
-        else:
-            return False
-
 class Knight(Mounted):
     def __init__(self, number, color, location):
-        super().__init__("K", number, color, location)
-        self.num = 4
-        self.number = number
-
-    def __le__(self, other):
-        if self.num < other.num:
-            return True
-        elif self.num == other.num:
-            if self.location[1] < other.location[1]:
-                return True
-            elif self.location[1] == other.location[1]:
-                return (self.number < other.number)
-            else:
-                return False
-        else:
-            return False
+        super().__init__("KN", number, color, location, 4)
 
 # Artjom
 class Sergeant(Piece):
     def __init__(self, number, color, location):
-        super().__init__("S", number, color, location)
-        self.num = 5
-        self.number = number
-
-    def __le__(self, other):
-        if self.num < other.num:
-            return True
-        elif self.num == other.num:
-            if self.location[1] < other.location[1]:
-                return True
-            elif self.location[1] == other.location[1]:
-                return (self.number < other.number)
-            else:
-                return False
-        else:
-            return False
+        super().__init__("SG", number, color, location, 5)
 
 # Artjom
 class Pikemen(Piece):
     def __init__(self, number, color, location):
-        super().__init__("P", number, color, location)
-        self.num = 6
-        self.number = number
-
-    def __le__(self, other):
-        if self.num < other.num:
-            return True
-        elif self.num == other.num:
-            if self.location[1] < other.location[1]:
-                return True
-            elif self.location[1] == other.location[1]:
-                return (self.number < other.number)
-            else:
-                return False
-        else:
-            return False
+        super().__init__("PK", number, color, location, 6)
 
 # Artjom
 class Squire(Piece):
     def __init__(self, color, location):
-        super().__init__("SQ", "", color, location)
-        self.num = 7
+        super().__init__("SQ", "", color, location, 7)
     
-    def __le__(self, other):
-        if self.num < other.num:
-            return True
-        else:
-            return False
 # Artjom
 class Archer(Piece):
     def __init__(self, color, location):
-        super().__init__("A", "", color, location)
-        self.num = 8
-
-    def __le__(self, other):
-        return False
+        super().__init__("AR", "", color, location, 8)
 
 
