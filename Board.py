@@ -130,7 +130,7 @@ class Board():
     # Must stitch together all possible moves of all pieces, in proper order...
     # Returning copies of itself where the game has been updated to reflect the
     # consequences of a move
-    def getAllMoves(self, ):
+    def get_all_moves(self, ):
         pass
 
 class Piece():
@@ -176,7 +176,6 @@ class King(Piece):
             for multiplier in [1,2]:
                 new_loc = ( self.location[0] + direction[0]*multiplier,
                             self.location[1] + direction[1]*multiplier)
-                print(multiplier)                
                 # Check location on board
                 if (new_loc[0] >= 0 and 
                     new_loc[0] <= 23 and 
