@@ -91,7 +91,7 @@ class Board():
             opponents = self.blue_pieces_locations
             color = 33
 
-        new_locs = list(piece.getMoves(self.clone(), friendlies, opponents))
+        new_locs = list(piece.get_moves(self.clone(), friendlies, opponents))
         curr_loc = piece.location
 
         print(board_nums1 + board_nums2)
@@ -161,13 +161,15 @@ class Piece():
     def __str__(self):
         return self.rep
 
+    def 
+
 
 class King(Piece):
     def __init__(self, color, location):
         super().__init__("KG", "", color, location, 1)
 
     # TODO: TEST CASTLE DYNAMICS
-    def getMoves(self, board, friendly_locs, opponent_locs):
+    def get_moves(self, board, friendly_locs, opponent_locs):
         on_green = (self.location == board.blue_castle[0]   or 
                     self.location == board.brown_castle[0])
         
@@ -217,7 +219,8 @@ class Mounted(Piece):
     def __init__(self, name, number, color, location, rank):
         super().__init__(name, number, color, location, rank)
 
-    def getMoves(self):
+    def get_moves(self):
+
         pass
 
 
