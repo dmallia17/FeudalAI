@@ -145,7 +145,7 @@ class Piece():
         self.location = location
         self.rank = rank
 
-    def __le__(self, other):
+    def __lt__(self, other):
         if self.rank < other.rank:
             return True
         elif self.rank == other.rank:
