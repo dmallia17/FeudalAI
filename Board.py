@@ -46,32 +46,51 @@ class Board():
     def display(self):
       
         # Format strings.
-        display_str = "\x1b[%dm\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m"
+        # display_str must first define a background color, determined by the
+        # type of "terrain" (castle is treated as terrain)
+        # These are numbers 46, 41, 47, 42 or 100
+        # Then it establishes underlining (4)
+        # This is followed by faint intensity (2), "normal" intensity (22) and
+        # faint again so that the center of each cell is highlighted.
+        # Last reset is applied to clear formatting handling for the next cell
+        display_str = "\x1b[%dm\x1b[4m\x1b[2m \x1b[22m%s\x1b[2m%s\x1b[0m"
         board_nums1 = "     0  1  2  3  4  5  6  7  8  9 "
         board_nums2 = "10 11 12 13 14 15 16 17 18 19 20 21 22 23 "
+
+        # Define a combination of piece dictionaries for checking if a piece
+        # should be rendered on the board
+        comb_dict = {**self.blue_pieces_locations,
+            **self.brown_pieces_locations}
 
         print(board_nums1 + board_nums2)
         for i in range(24):
             print(str(i).ljust(2, " ") + "| ", end="")
             for j in range(24):
+                # Assume no piece present then check
+                foreground = "  "
+                if (i,j) in comb_dict:
+                    foreground = comb_dict[(i,j)].rep
+
                 # CYAN == CASTLE GREEN
                 if (i,j) in [self.brown_castle[0], self.blue_castle[0]]:
-                    print(display_str % 46, end="")
+                    print(display_str % (46, foreground[:-1], foreground[-1]),
+                        end="")
                 # RED == CASTLE INTERIOR
                 elif (i,j) in [self.brown_castle[1], self.blue_castle[1]]:
-                    print(display_str % 41, end="")
+                    print(display_str % (41, foreground[:-1], foreground[-1]),
+                        end="")
                 # ROUGH == WHITE
                 elif (i,j) in self.rough:
-                    print(display_str % 47, end="")
+                    print(display_str % (47, foreground[:-1], foreground[-1]),
+                        end="")
                 # MOUNTAIN == GREEN
                 elif (i,j) in self.mountains:
-                    print(display_str % 42, end="")
-
-                # TODO: ADD PIECE RENDERING CONDITIONAL HERE.
-
+                    print(display_str % (42, foreground[:-1], foreground[-1]),
+                        end="")
                 # EMPTY TERRAIN == BROWN/GREY.
                 else:
-                    print(display_str % 100, end="")
+                    print(display_str % (100, foreground[:-1], foreground[-1]),
+                        end="")
             print("|"+str(i))
         print(board_nums1 + board_nums2)
 
@@ -124,6 +143,7 @@ class Board():
         pass
 
     # Given a chosen configuration, insert the pieces into the mappings
+    # Must check for valid placement - i.e. no units placed on mountains
     def place_pieces(self,):
         pass
 
@@ -136,9 +156,9 @@ class Board():
 class Piece():
     def __init__(self, name, number, color, location, rank):
         if color == "blue":
-            self.rep = "\x1b[94m" + name + str(number) + "\x1b[97m"
+            self.rep = "\x1b[94m" + name + str(number)
         else:
-            self.rep = "\x1b[33m" + name + str(number) + "\x1b[97m"
+            self.rep = "\x1b[33m" + name + str(number)
         self.name = name
         self.number = number
         self.color = color
@@ -148,6 +168,11 @@ class Piece():
         self.directions = [(-1,0),(-1,1),(0,1),(1,1),
                            (1,0),(1,-1),(0,-1),(-1,-1)]
 
+    # Define less than or equal functionality so that Piece instances can be
+    # sorted using Python's sorted() function; this enables us to adhere to the
+    # rank (King down to Archer), left-to-right (primary method of
+    # tie-breaking among units of the same type) and unit number (secondary
+    # method of tie-breaking among units of the same type) move ordering.
     def __le__(self, other):
         if self.rank < other.rank:
             return True
@@ -261,21 +286,21 @@ class Knight(Mounted):
     def __init__(self, number, color, location):
         self.multipliers = 54
         self.rank = 4
-        super().__init__("KN", number, color, location, self.rank)
+        super().__init__("K", number, color, location, self.rank)
 
 class Sergeant(Piece):
     def __init__(self, number, color, location):
         self.number = number
         self.multipliers = 12
         self.rank = 5
-        super().__init__("SG", number, color, location, self.rank)
+        super().__init__("S", number, color, location, self.rank)
 
 class Pikemen(Piece):
     def __init__(self, number, color, location):
         self.number = number
         self.multipliers = 12
         self.rank = 6
-        super().__init__("PK", number, color, location, self.rank)
+        super().__init__("P", number, color, location, self.rank)
 
 class Squire(Piece):
     def __init__(self, color, location):
