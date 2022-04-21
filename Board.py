@@ -33,6 +33,11 @@ class Board():
         new_board.blue_pieces_locations = self.blue_pieces_locations.copy()
         new_board.brown_pieces = self.brown_pieces.copy()
         new_board.brown_pieces_locations = self.brown_pieces_locations.copy()
+        new_board.blue_castle = self.blue_castle[:]
+        new_board.brown_castle = self.brown_castle[:]
+        new_board.blue_piece_counts = self.blue_piece_counts.copy()
+        new_board.brown_piece_counts = self.brown_piece_counts.copy()
+
         return new_board
 
     # Parse terrain file and store it in internal representation.
@@ -277,17 +282,33 @@ class Board():
         # dl = dict_locations
         # c  = castle
         if color == "brown":
+            bounds = (0,11)
+            for loc in configuration:
+                if type(loc) == list:
+                    for loc_sub in loc:
+                        if loc_sub[0] < bounds[0] or loc_sub[1] > bounds[1]:
+                            return False
+                else:
+                    if loc[0] < bounds[0] or loc[1] > bounds[1]:
+                        return False
             dp = self.brown_pieces
             dl = self.brown_pieces_locations
             c = self.brown_castle
             counts = self.brown_piece_counts
-            bounds = (0,11)
         elif color == "blue":
+            bounds = (12,23)
+            for loc in configuration:
+                if type(loc) == list:
+                    for loc_sub in loc:
+                        if loc_sub[0] < bounds[0] or loc_sub[1] > bounds[1]:
+                            return False
+                else:
+                    if loc[0] < bounds[0] or loc[1] > bounds[1]:
+                        return False
             dp = self.blue_pieces
             dl = self.brown_pieces_locations
             c = self.blue_castle
             counts = self.blue_piece_counts
-            bounds = (12,23)
 
         self.add_piece(dp, dl, c, color, counts,
                         "castle_interior", configuration["castle_interior"]) 
