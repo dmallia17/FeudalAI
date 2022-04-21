@@ -193,7 +193,7 @@ class Piece():
                     break
 
                 # Check if a mounted unit is encountering rough terrain.
-                if self.rank in [2,3,4] and new_loc in self.rough:
+                if self.rank in [2,3,4] and new_loc in board.rough:
                     break
 
                 # Check if a mountain has been hit or a friendly piece
@@ -238,13 +238,11 @@ class King(Piece):
         self.multipliers = 2
         self.rank = 1
         super().__init__("KG", "", color, location, self.rank)
+
 class Mounted(Piece):
     # DAN
     def __init__(self, name, number, color, location, rank):
         super().__init__(name, number, color, location, rank)
-
-    def get_moves(self):
-        pass
 
 
 class Prince(Mounted):
