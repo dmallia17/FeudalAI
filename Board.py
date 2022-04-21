@@ -237,7 +237,7 @@ class King(Piece):
     def __init__(self, color, location):
         self.multipliers = 2
         self.rank = 1
-        super().__init__("KG", "", color, location, 1)
+        super().__init__("KG", "", color, location, self.rank)
 class Mounted(Piece):
     # DAN
     def __init__(self, name, number, color, location, rank):
@@ -251,19 +251,19 @@ class Prince(Mounted):
     def __init__(self, color, location):
         self.multipliers = 54
         self.rank = 2
-        super().__init__("PR", "", color, location, 2)
+        super().__init__("PR", "", color, location, self.rank)
 
 class Duke(Mounted):
     def __init__(self, color, location):
         self.multipliers = 54
         self.rank = 3
-        super().__init__("DK", "", color, location, 3)
+        super().__init__("DK", "", color, location, self.rank)
     
 class Knight(Mounted):
     def __init__(self, number, color, location):
         self.multipliers = 54
         self.rank = 4
-        super().__init__("KN", number, color, location, 4)
+        super().__init__("KN", number, color, location, self.rank)
 
 class Sergeant(Piece):
     def __init__(self, number, color, location):
