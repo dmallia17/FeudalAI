@@ -11,7 +11,7 @@ class Board():
         # Tuple of tuples, first is green, second is interior
         # TODO: These are temporarily fixed coordinates (until piece placement
         #       is implemented).
-        self.blue_castle = [(0,0),(0,1)]
+        self.blue_castle = [(12,15),(12,16)]
         self.brown_castle = [(10,0),(10,1)]
 
     # Return a clone of the Board instance, only copying the piece dictionaries
@@ -144,6 +144,9 @@ class Piece():
         self.color = color
         self.location = location
         self.rank = rank
+        # Default directions (only Squire overrides these).
+        self.directions = [(-1,0),(-1,1),(0,1),(1,1),
+                           (1,0),(1,-1),(0,-1),(-1,-1)]
 
     def __le__(self, other):
         if self.rank < other.rank:
@@ -161,99 +164,133 @@ class Piece():
     def __str__(self):
         return self.rep
 
-    def 
-
-
-class King(Piece):
-    def __init__(self, color, location):
-        super().__init__("KG", "", color, location, 1)
-
-    # TODO: TEST CASTLE DYNAMICS
+    # TODO 1: Add Squire functionality.
+    # TODO 2: Test this.
     def get_moves(self, board, friendly_locs, opponent_locs):
         on_green = (self.location == board.blue_castle[0]   or 
                     self.location == board.brown_castle[0])
         
-        directions = [(-1,0),(-1,1),(0,1),(1,1),(1,0),(1,-1),(0,-1),(-1,-1)]
-        for direction in directions:
-            for multiplier in [1,2]:
+        for direction in self.directions:
+            for multiplier in range(1,self.multipliers+1):
+                # IF SERGEANT AND MULTIPLIER > 1, stop searching 
+                # horizontally and vertically.
+                if self.rank == 5:
+                    if (direction in [(-1,0),(0,1),(1,0),(0,-1)] and 
+                        multiplier > 1):
+                        break
+                # IF PIKEMAN AND MULTIPLIER > 1, stop searching diagonally.
+                if self.rank == 6:
+                    if (direction in [(-1,-1),(1,-1),(1,1),(-1,1)] and 
+                        multiplier > 1):
+                        break
                 new_loc = ( self.location[0] + direction[0]*multiplier,
                             self.location[1] + direction[1]*multiplier)
-                # Check location on board
-                if (new_loc[0] >= 0 and 
-                    new_loc[0] <= 23 and 
-                    new_loc[1] >= 0  and 
-                    new_loc[1] <= 23):
-                    
-                    # Check if a mountain has been hit or a friendly piece
-                    if (new_loc in board.mountains or 
-                        new_loc in friendly_locs.values()):
-                        break
-                    
-                    # Entering castle green
-                    if (new_loc == board.blue_castle[0] or 
-                        new_loc == board.brown_castle[0]):
-                        yield new_loc
-                        break
-                    
-                    # Attempting to enter castle interior
-                    if  (on_green and 
-                            (new_loc == board.blue_castle[1] or 
-                            board.brown_castle[1])):
-                        yield new_loc
-                        break
-                    # Attempting to enter castle illegaly.                    
-                    elif (not on_green and 
-                            (new_loc == board.blue_castle[1] or 
-                             new_loc == board.brown_castle[1])):
-                        break
+                # Check if location is in bounds.
+                if (new_loc[0] < 0  or
+                    new_loc[0] > 23 or 
+                    new_loc[1] < 0  or
+                    new_loc[1] > 23):
+                    break
 
-                    # Check if an opponent has been hit
-                    if new_loc in opponent_locs.values():
-                        yield new_loc
-                        break
+                # Check if a mounted unit is encountering rough terrain.
+                if self.rank in [2,3,4] and new_loc in self.rough:
+                    break
+
+                # Check if a mountain has been hit or a friendly piece
+                if (new_loc in board.mountains or 
+                    new_loc in friendly_locs.values()):
+                    break
+                
+                # Entering castle green
+                if (new_loc in [board.blue_castle[0], board.brown_castle[0]]):
                     yield new_loc
+                    # Archer can shoot past the green, so continue on if 
+                    # archer:
+                    if self.rank == 8:
+                        continue
+                    break
 
+                # Archers can not enter castle interior.
+                if (self.rank == 8  and
+                    on_green        and
+                    new_loc in [board.blue_castle[1], board.brown_castle[1]]):
+                    break
+
+                # Attempting to enter castle interior
+                if  (on_green and 
+                    new_loc in [board.blue_castle[1], board.brown_castle[1]]):
+                    yield new_loc
+                    break
+
+                # Attempting to enter castle illegaly.                    
+                elif (not on_green and 
+                      new_loc in [board.blue_castle[1],board.brown_castle[1]]):
+                    break
+
+                # Check if an opponent has been hit
+                if new_loc in opponent_locs.values():
+                    yield new_loc
+                    break
+                yield new_loc
+
+class King(Piece):
+    def __init__(self, color, location):
+        self.multipliers = 2
+        self.rank = 1
+        super().__init__("KG", "", color, location, 1)
 class Mounted(Piece):
     # DAN
-
     def __init__(self, name, number, color, location, rank):
         super().__init__(name, number, color, location, rank)
 
     def get_moves(self):
-
         pass
 
 
 class Prince(Mounted):
     def __init__(self, color, location):
+        self.multipliers = 54
+        self.rank = 2
         super().__init__("PR", "", color, location, 2)
 
 class Duke(Mounted):
     def __init__(self, color, location):
+        self.multipliers = 54
+        self.rank = 3
         super().__init__("DK", "", color, location, 3)
     
 class Knight(Mounted):
     def __init__(self, number, color, location):
+        self.multipliers = 54
+        self.rank = 4
         super().__init__("KN", number, color, location, 4)
 
-# Artjom
 class Sergeant(Piece):
     def __init__(self, number, color, location):
-        super().__init__("SG", number, color, location, 5)
+        self.number = number
+        self.multipliers = 12
+        self.rank = 5
+        super().__init__("SG", number, color, location, self.rank)
 
-# Artjom
 class Pikemen(Piece):
     def __init__(self, number, color, location):
-        super().__init__("PK", number, color, location, 6)
+        self.number = number
+        self.multipliers = 12
+        self.rank = 6
+        super().__init__("PK", number, color, location, self.rank)
 
-# Artjom
 class Squire(Piece):
     def __init__(self, color, location):
         super().__init__("SQ", "", color, location, 7)
     
-# Artjom
 class Archer(Piece):
     def __init__(self, color, location):
-        super().__init__("AR", "", color, location, 8)
+        self.multipliers = 3
+        self.rank = 8
+        super().__init__("AR", "", color, location, self.rank)
+
+
+
+
 
 
