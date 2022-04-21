@@ -4,15 +4,24 @@ class Board():
     def __init__(self):
         self.rough = set()
         self.mountains = set()
-        self.blue_pieces = dict() # MAY BE REVISED
-        self.blue_pieces_locations = dict()
-        self.brown_pieces = dict() # MAY BE REVISED
-        self.brown_pieces_locations = dict()
+        self.blue_pieces = dict() # MAY BE REVISED # PIECES -> LOCATIONS
+        self.blue_pieces_locations = dict() # LOCATIONS -> PIECES
+        self.brown_pieces = dict() # MAY BE REVISED # PIECES -> LOCATIONS
+        self.brown_pieces_locations = dict() # LOCATIONS -> PIECES
         # Tuple of tuples, first is green, second is interior
         # TODO: These are temporarily fixed coordinates (until piece placement
         #       is implemented).
         self.blue_castle = [(12,15),(12,16)]
         self.brown_castle = [(10,0),(10,1)]
+        self.blue_piece_counts = {"castle_green" : 0, "castle_interior" : 0,
+            "king" : 0, "prince" : 0, "duke" : 0, "knight": 0, "sergeant" : 0,
+            "pikemen" : 0, "squire" : 0, "archer" : 0}
+        self.brown_piece_counts = {"castle_green" : 0, "castle_interior" : 0,
+            "king" : 0, "prince" : 0, "duke" : 0, "knight": 0, "sergeant" : 0,
+            "pikemen" : 0, "squire" : 0, "archer" : 0}
+        self.target_counts = {"castle_green" : 1, "castle_interior" : 1,
+            "king" : 1, "prince" : 1, "duke" : 1, "knight": 2, "sergeant" : 2,
+            "pikemen" : 4, "squire" : 1, "archer" : 1}
 
     # Return a clone of the Board instance, only copying the piece dictionaries
     # TODO: MAKE SURE ALL CLASS MEMBERS ARE CLONED PROPERLY HERE
@@ -96,10 +105,15 @@ class Board():
 
     # FOR DEBUGGING HELP
     def display_piece_options(self, piece):
-        
+
         # Format strings.
         board_nums1 = "     0  1  2  3  4  5  6  7  8  9 "
         board_nums2 = "10 11 12 13 14 15 16 17 18 19 20 21 22 23 "
+
+        # Define a combination of piece dictionaries for checking if a piece
+        # should be rendered on the board
+        comb_dict = {**self.blue_pieces_locations,
+            **self.brown_pieces_locations}
 
         if piece.color == "blue":
             friendlies = self.blue_pieces_locations
@@ -111,7 +125,8 @@ class Board():
             color = 33
 
         new_locs = list(piece.get_moves(self.clone(), friendlies, opponents))
-        curr_loc = piece.location
+        # curr_loc = piece.location
+        display_str = "\x1b[%dm\x1b[4m\x1b[2m \x1b[22m%s\x1b[2m%s\x1b[0m"
 
         print(board_nums1 + board_nums2)
 
@@ -119,21 +134,49 @@ class Board():
             print(str(i).ljust(2, " ") + "| ", end="")
             for j in range(24):
 
-                if (i,j) in self.rough and (i,j) == curr_loc:
-                    print("\x1b[47;%dm\x1b[4m\x1b[2m \x1b[22mH\x1b[2m \x1b[0m" % color, end="")
-                elif (i,j) in self.rough and (i,j) in new_locs:
-                    print("\x1b[47;%dm\x1b[4m\x1b[2m \x1b[22mX\x1b[2m \x1b[0m" % color, end="")
+                # Assume no piece present then check
+                foreground = "  "
+                if (i,j) in comb_dict:
+                    foreground = comb_dict[(i,j)].rep
+                elif (i,j) in new_locs:
+                    foreground = "\x1b[91mX "
+
+                # CYAN == CASTLE GREEN
+                if (i,j) in [self.brown_castle[0], self.blue_castle[0]]:
+                    print(display_str % (46, foreground[:-1], foreground[-1]),
+                        end="")
+                # RED == CASTLE INTERIOR
+                elif (i,j) in [self.brown_castle[1], self.blue_castle[1]]:
+                    print(display_str % (41, foreground[:-1], foreground[-1]),
+                        end="")
+                # ROUGH == WHITE
                 elif (i,j) in self.rough:
-                    print("\x1b[47m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                    print(display_str % (47, foreground[:-1], foreground[-1]),
+                        end="")
+                # MOUNTAIN == GREEN
                 elif (i,j) in self.mountains:
-                    print("\x1b[42m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                    print(display_str % (42, foreground[:-1], foreground[-1]),
+                        end="")
+                # EMPTY TERRAIN == BROWN/GREY.
                 else:
-                    if (i,j) == curr_loc:
-                        print("\x1b[100;%dm\x1b[4m\x1b[2m \x1b[22mH\x1b[2m \x1b[0m" % color, end="")
-                    elif (i,j) in new_locs:
-                        print("\x1b[100;%dm\x1b[4m\x1b[2m \x1b[22mX\x1b[2m \x1b[0m" % color, end="")
-                    else:
-                        print("\x1b[100m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                    print(display_str % (100, foreground[:-1], foreground[-1]),
+                        end="")
+
+                # if (i,j) in self.rough and (i,j) == curr_loc:
+                #     print("\x1b[47;%dm\x1b[4m\x1b[2m \x1b[22mH\x1b[2m \x1b[0m" % color, end="")
+                # elif (i,j) in self.rough and (i,j) in new_locs:
+                #     print("\x1b[47;%dm\x1b[4m\x1b[2m \x1b[22mX\x1b[2m \x1b[0m" % color, end="")
+                # elif (i,j) in self.rough:
+                #     print("\x1b[47m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                # elif (i,j) in self.mountains:
+                #     print("\x1b[42m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
+                # else:
+                #     if (i,j) == curr_loc:
+                #         print("\x1b[100;%dm\x1b[4m\x1b[2m \x1b[22mH\x1b[2m \x1b[0m" % color, end="")
+                #     elif (i,j) in new_locs:
+                #         print("\x1b[100;%dm\x1b[4m\x1b[2m \x1b[22mX\x1b[2m \x1b[0m" % color, end="")
+                #     else:
+                #         print("\x1b[100m\x1b[4m\x1b[2m \x1b[22m \x1b[2m \x1b[0m", end="")
 
                 # Print piece, if relevant
             print("|"+str(i))
@@ -142,10 +185,133 @@ class Board():
     def gameover(self, ):
         pass
 
-    # Given a chosen configuration, insert the pieces into the mappings
-    # Must check for valid placement - i.e. no units placed on mountains
-    def place_pieces(self,):
-        pass
+    # Function for adding a single piece to the board
+    # Checks for valid placement - i.e. no units placed off the board or on
+    # mountains; also checks squire 
+    # @return   True if placed successfully, else False
+    def add_piece(self, dict_pieces, dict_locations, counts, color, castle,
+        piece_type, location):
+        # Check in bounds
+        if (location[0] < 0  or location[0] > 23 or location[1] < 0 or
+            location[1] > 23):
+            return False
+
+        # Check if a piece other than the castle is being placed on a mountain
+        if ((piece_type != "castle_green" and piece_type != "castle_interior")
+            and location in self.mountains):
+            return False
+
+        # Check squire and archer not being placd in castle interior
+        if ((piece_type == "squire" or piece_type == "archer") and
+            location in [self.blue_castle[1], self.brown_castle[1]]):
+            return False
+
+        # Otherwise place piece
+        if piece_type == "castle_green":
+            castle[0] = location
+            counts["castle_green"] += 1
+            if location in self.mountains:
+                self.mountains.remove(location)
+            if location in self.rough:
+                self.rough.remove(location)
+        elif piece_type == "castle_interior":
+            castle[1] = location
+            counts["castle_interior"] += 1
+            if location in self.mountains:
+                self.mountains.remove(location)
+            if location in self.rough:
+                self.rough.remove(location)
+        elif piece_type == "king":
+            p = King(color, location)
+            counts["king"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+        elif piece_type == "prince":
+            p = Prince(color, location)
+            counts["prince"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+        elif piece_type == "duke":
+            p = Duke(color, location)
+            counts["duke"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+        elif piece_type == "knight":
+            p = Knight(counts["knight"] + 1, color, location)
+            counts["knight"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+        elif piece_type == "sergeant":
+            p = Sergeant(counts["sergeant"] + 1, color, location)
+            counts["sergeant"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+        elif piece_type == "pikemen":
+            p = Knight(counts["pikemen"] + 1, color, location)
+            counts["pikemen"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+        elif piece_type == "squire":
+            p = Squire(color, location)
+            counts["squire"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+        elif piece_type == "archer":
+            p = Archer(color, location)
+            counts["archer"] += 1
+            dict_pieces[p] = location
+            dict_locations[location] = p
+
+        return True
+
+
+    # Given a chosen configuration, handle all piece setup
+    # Checks valid placement in terms of field of play (no pieces on other
+    # player's side)
+    # First places the castle, so that proper checks 
+    # @param configuration  Dictionary mapping piece types to locations:
+    #                       ex: configuration["knight"] = [(1,1), (2,2)]
+    # @return 
+    def place_pieces(self, color, configuration):
+        # dp = dict_pieces
+        # dl = dict_locations
+        # c  = castle
+        if color == "brown":
+            dp = self.brown_pieces
+            dl = self.brown_pieces_locations
+            c = self.brown_castle
+            counts = self.brown_piece_counts
+            bounds = (0,11)
+        elif color == "blue":
+            dp = self.blue_pieces
+            dl = self.brown_pieces_locations
+            c = self.blue_castle
+            counts = self.blue_piece_counts
+            bounds = (12,23)
+
+        self.add_piece(dp, dl, c, color, counts,
+                        "castle_interior", configuration["castle_interior"]) 
+        self.add_piece(dp, dl, c, color, counts,
+                        "castle_green", configuration["castle_green"]) 
+        self.add_piece(dp, dl, c, color, counts,
+                        "king", configuration["king"])
+        self.add_piece(dp, dl, c, color, counts,
+                        "prince", configuration["prince"])
+        self.add_piece(dp, dl, c, color, counts,
+                        "duke", configuration["duke"])
+        for loc in configuration["knight"]:
+            self.add_piece(dp, dl, c, color, counts, "knight", loc)
+        for loc in configuration["sergeant"]:
+            self.add_piece(dp, dl, c, color, counts, "sergeant", loc)
+        for loc in configuration["pikemen"]:
+            self.add_piece(dp, dl, c, color, counts, "pikemen", loc)
+        self.add_piece(dp, dl, c, color, counts,
+                        "squire", configuration["squire"])
+        self.add_piece(dp, dl, c, color, counts,
+                        "archer", configuration["archer"])
+
+        return counts == self.target_counts
+
 
     # Must stitch together all possible moves of all pieces, in proper order...
     # Returning copies of itself where the game has been updated to reflect the
@@ -217,6 +383,11 @@ class Piece():
                     new_loc[1] > 23):
                     break
 
+                # Check if squire is jumping over a castle.
+                if self.rank == 7:
+                    
+                    break
+
                 # Check if a mounted unit is encountering rough terrain.
                 if self.rank in [2,3,4] and new_loc in board.rough:
                     break
@@ -247,13 +418,13 @@ class Piece():
                     yield new_loc
                     break
 
-                # Attempting to enter castle illegaly.                    
+                # Attempting to enter castle illegaly.
                 elif (not on_green and 
                       new_loc in [board.blue_castle[1],board.brown_castle[1]]):
                     break
 
                 # Check if an opponent has been hit
-                if new_loc in opponent_locs.values():
+                if new_loc in opponent_locs.keys():
                     yield new_loc
                     break
                 yield new_loc
@@ -304,7 +475,11 @@ class Pikemen(Piece):
 
 class Squire(Piece):
     def __init__(self, color, location):
-        super().__init__("SQ", "", color, location, 7)
+        self.multipliers = 1
+        self.rank = 7
+        self.directions = [(-1,-2),(-2,-1), (-2,1), (-1,2),
+                            (1,2), (2,1), (2,-1), (1,-2)]
+        super().__init__("SQ", "", color, location, self.rank)
     
 class Archer(Piece):
     def __init__(self, color, location):
