@@ -1,4 +1,6 @@
 # Implementation of the Feudal board game with some move restriction
+from itertools import combinations
+from copy import deepcopy
 
 class Board():
     def __init__(self):
@@ -11,8 +13,8 @@ class Board():
         # Tuple of tuples, first is green, second is interior
         # TODO: These are temporarily fixed coordinates (until piece placement
         #       is implemented).
-        self.blue_castle = [(12,15),(12,16)]
-        self.brown_castle = [(10,0),(10,1)]
+        self.blue_castle = [None, None]
+        self.brown_castle = [None, None]
         self.blue_piece_counts = {"castle_green" : 0, "castle_interior" : 0,
             "king" : 0, "prince" : 0, "duke" : 0, "knight": 0, "sergeant" : 0,
             "pikemen" : 0, "squire" : 0, "archer" : 0}
@@ -29,10 +31,10 @@ class Board():
         new_board = Board()
         new_board.rough = self.rough
         new_board.mountains = self.mountains
-        new_board.blue_pieces = self.blue_pieces.copy()
-        new_board.blue_pieces_locations = self.blue_pieces_locations.copy()
-        new_board.brown_pieces = self.brown_pieces.copy()
-        new_board.brown_pieces_locations = self.brown_pieces_locations.copy()
+        new_board.blue_pieces = deepcopy(self.blue_pieces)
+        new_board.blue_pieces_locations = deepcopy(self.blue_pieces_locations)
+        new_board.brown_pieces = deepcopy(self.brown_pieces)
+        new_board.brown_pieces_locations = deepcopy(self.brown_pieces_locations)
         new_board.blue_castle = self.blue_castle[:]
         new_board.brown_castle = self.brown_castle[:]
         new_board.blue_piece_counts = self.blue_piece_counts.copy()
@@ -58,7 +60,6 @@ class Board():
     # TODO: ADD RENDERING OF ALL PIECES - DAN
     # Print board to terminal
     def display(self):
-      
         # Format strings.
         # display_str must first define a background color, determined by the
         # type of "terrain" (castle is treated as terrain)
@@ -187,15 +188,33 @@ class Board():
             print("|"+str(i))
         print(board_nums1 + board_nums2)
 
-    def gameover(self, ):
-        pass
+    # Loss conditions: all royalty eliminated OR enemy in castle
+    def blue_lost(self):
+        royalty_eliminated = ((0 == self.blue_piece_counts["king"]) and
+            (0 == self.blue_piece_counts["prince"]) and
+            (0 == self.blue_piece_counts["duke"]))
+
+        enemy_in_castle = self.blue_castle[1] in self.brown_pieces_locations
+        return royalty_eliminated or enemy_in_castle
+
+    def brown_lost(self):
+        royalty_eliminated = ((0 == self.brown_piece_counts["king"]) and
+            (0 == self.brown_piece_counts["prince"]) and
+            (0 == self.brown_piece_counts["duke"]))
+
+        enemy_in_castle = self.brown_castle[1] in self.blue_pieces_locations
+        return royalty_eliminated or enemy_in_castle
+
+    def game_over(self, ):
+        return self.brown_lost() or self.blue_lost()
 
     # Function for adding a single piece to the board
     # Checks for valid placement - i.e. no units placed off the board or on
     # mountains; also checks squire 
     # @return   True if placed successfully, else False
-    def add_piece(self, dict_pieces, dict_locations, counts, color, castle,
+    def add_piece(self, dict_pieces, dict_locations, castle, color, counts,
         piece_type, location):
+
         # Check in bounds
         if (location[0] < 0  or location[0] > 23 or location[1] < 0 or
             location[1] > 23):
@@ -213,6 +232,7 @@ class Board():
 
         # Otherwise place piece
         if piece_type == "castle_green":
+            castle = self.blue_castle if "blue" == color else self.brown_castle
             castle[0] = location
             counts["castle_green"] += 1
             if location in self.mountains:
@@ -220,6 +240,7 @@ class Board():
             if location in self.rough:
                 self.rough.remove(location)
         elif piece_type == "castle_interior":
+            castle = self.blue_castle if "blue" == color else self.brown_castle
             castle[1] = location
             counts["castle_interior"] += 1
             if location in self.mountains:
@@ -252,7 +273,7 @@ class Board():
             dict_pieces[p] = location
             dict_locations[location] = p
         elif piece_type == "pikemen":
-            p = Knight(counts["pikemen"] + 1, color, location)
+            p = Pikemen(counts["pikemen"] + 1, color, location)
             counts["pikemen"] += 1
             dict_pieces[p] = location
             dict_locations[location] = p
@@ -269,6 +290,8 @@ class Board():
 
         return True
 
+    def remove_piece(self):
+        pass
 
     # Given a chosen configuration, handle all piece setup
     # Checks valid placement in terms of field of play (no pieces on other
@@ -282,11 +305,11 @@ class Board():
         # dl = dict_locations
         # c  = castle
         if color == "brown":
-            bounds = (0,11)
-            for loc in configuration:
+            bounds = (12,23)
+            for loc in configuration.values():
                 if type(loc) == list:
                     for loc_sub in loc:
-                        if loc_sub[0] < bounds[0] or loc_sub[1] > bounds[1]:
+                        if loc_sub[0] < bounds[0] or loc_sub[0] > bounds[1]:
                             return False
                 else:
                     if loc[0] < bounds[0] or loc[1] > bounds[1]:
@@ -296,19 +319,21 @@ class Board():
             c = self.brown_castle
             counts = self.brown_piece_counts
         elif color == "blue":
-            bounds = (12,23)
-            for loc in configuration:
+            bounds = (0,11)
+            for loc in configuration.values():
                 if type(loc) == list:
                     for loc_sub in loc:
-                        if loc_sub[0] < bounds[0] or loc_sub[1] > bounds[1]:
+                        if loc_sub[0] < bounds[0] or loc_sub[0] > bounds[1]:
                             return False
                 else:
                     if loc[0] < bounds[0] or loc[1] > bounds[1]:
                         return False
             dp = self.blue_pieces
-            dl = self.brown_pieces_locations
+            dl = self.blue_pieces_locations
             c = self.blue_castle
             counts = self.blue_piece_counts
+
+
 
         self.add_piece(dp, dl, c, color, counts,
                         "castle_interior", configuration["castle_interior"]) 
@@ -337,8 +362,104 @@ class Board():
     # Must stitch together all possible moves of all pieces, in proper order...
     # Returning copies of itself where the game has been updated to reflect the
     # consequences of a move
-    def get_all_moves(self, ):
-        pass
+    # yields pairs of (move, board) where board is an updated clone reflecting
+    # move, and move is a list of (piece, new_location) tuples
+    def get_all_moves(self, color):
+        # Reference the correct set of pieces
+        if "blue" == color:
+            pieces = self.blue_pieces
+            friendly_locs = self.blue_pieces_locations
+            opponent_locs = self.brown_pieces_locations
+        else:
+            pieces = self.brown_pieces
+            friendly_locs = self.brown_pieces_locations
+            opponent_locs = self.blue_pieces_locations
+
+        # For all single piece moves...
+        for piece in pieces:
+            # For each piece, fetch an available move, apply it, and pass to
+            # next piece
+            for piece_move in piece.get_moves(self.clone(), friendly_locs, opponent_locs):
+                print(piece, piece.location, piece_move)
+                new_board = self.clone()
+                if not new_board.apply_move(piece.location, piece_move, color):
+                    print("get_all_moves: move not successfully applied")
+                    raise RuntimeError
+                yield ([(piece.location, piece_move)],new_board)
+
+        # For all moves of two pieces (if possible)...
+        # if len(pieces) >= 2:
+        #     for combination in combinations(pieces.keys(), 2):
+        #         # The combination must be ordered correctly...
+        #         sorted_selection = sorted(combination)
+
+        #         first_piece = combination[0]
+        #         second_piece = combination[1]
+        #         for first_piece_move in first_piece.get_moves(self.clone(), friendly_locs, opponent_locs):
+        #             new_board_1 = self.clone()
+        #             if not new_board_1.apply_move(first_piece.location, first_piece_move, color):
+        #                 print("get_all_moves: move not successfully applied")
+        #                 raise RuntimeError
+        #             for second_piece_move in second_piece.get_moves(new_board_1, friendly_locs, opponent_locs):
+        #                 new_board_2 = new_board_1.clone()
+        #                 if not new_board_2.apply_move(second_piece.location, second_piece_move, color):
+        #                     print("get_all_moves: move not successfully applied")
+        #                     raise RuntimeError
+        #                 yield([(first_piece.location, first_piece_move),(second_piece.location, second_piece_move)], new_board_2)
+
+    # Apply sequence of moves to the board (1 to 4 moves).
+    # TODO: PUT MORE CHECKING
+    # @param moves is a list of (piece,loc) tuples, where loc denotes the new location
+    #        for the piece.
+    def apply_move(self, origin, new_location, color):
+        if "blue" == color:
+            friendly_pieces = self.blue_pieces
+            opponent_pieces = self.brown_pieces
+            friendly_locs = self.blue_pieces_locations
+            opponent_locs = self.brown_pieces_locations
+            opponent_counts = self.brown_piece_counts
+        else: # Brown
+            friendly_pieces = self.brown_pieces
+            opponent_pieces = self.blue_pieces
+            friendly_locs = self.brown_pieces_locations
+            opponent_locs = self.blue_pieces_locations
+            opponent_counts = self.blue_piece_counts
+
+        #print(friendly_locs)
+        #print(self.blue_pieces)
+        #print(self.blue_pieces_locations)
+        current_piece = friendly_locs[origin]
+        # If new_location is where an enemy is delete the opponent piece and
+        # move current piece
+        # Special case: archer
+        if new_location in opponent_locs:
+            # Delete opponent
+            enemy_piece = opponent_locs[new_location]
+            opponent_counts[str(enemy_piece)] -= 1 # Decrement count
+            del opponent_locs[new_location] # Remove from locations -> pieces
+            del opponent_pieces[enemy_piece] # Remove from pieces -> locations
+
+            # Move current piece (if not an archer)
+            if "archer" != str(current_piece):
+                del friendly_locs[origin] # Remove from locations -> pieces
+                # Reinsert with correct location
+                friendly_locs[new_location] = current_piece
+                # Update pieces -> locations
+                friendly_pieces[current_piece] = new_location
+                # Update the piece itself
+                current_piece.location = new_location
+        # Otherwise just moving to a new spot
+        else:
+            del friendly_locs[origin] # Remove from locations -> pieces
+            # Reinsert with correct location
+            friendly_locs[new_location] = current_piece
+            # Update pieces -> locations
+            friendly_pieces[current_piece] = new_location
+            # Update the piece itself
+            current_piece.location = new_location
+
+        return True
+
 
 class Piece():
     def __init__(self, name, number, color, location, rank):
@@ -413,9 +534,10 @@ class Piece():
                 if self.rank in [2,3,4] and new_loc in board.rough:
                     break
 
+
                 # Check if a mountain has been hit or a friendly piece
                 if (new_loc in board.mountains or 
-                    new_loc in friendly_locs.values()):
+                    new_loc in friendly_locs.keys()):
                     break
                 
                 # Entering castle green
@@ -456,6 +578,9 @@ class King(Piece):
         self.rank = 1
         super().__init__("KG", "", color, location, self.rank)
 
+    def __str__(self):
+        return "king"
+
 class Mounted(Piece):
     # DAN
     def __init__(self, name, number, color, location, rank):
@@ -468,17 +593,26 @@ class Prince(Mounted):
         self.rank = 2
         super().__init__("PR", "", color, location, self.rank)
 
+    def __str__(self):
+        return "prince"
+
 class Duke(Mounted):
     def __init__(self, color, location):
         self.multipliers = 54
         self.rank = 3
         super().__init__("DK", "", color, location, self.rank)
-    
+
+    def __str__(self):
+        return "duke"
+
 class Knight(Mounted):
     def __init__(self, number, color, location):
         self.multipliers = 54
         self.rank = 4
         super().__init__("K", number, color, location, self.rank)
+
+    def __str__(self):
+        return "knight"
 
 class Sergeant(Piece):
     def __init__(self, number, color, location):
@@ -487,12 +621,18 @@ class Sergeant(Piece):
         self.rank = 5
         super().__init__("S", number, color, location, self.rank)
 
+    def __str__(self):
+        return "sergeant"
+
 class Pikemen(Piece):
     def __init__(self, number, color, location):
         self.number = number
         self.multipliers = 12
         self.rank = 6
         super().__init__("P", number, color, location, self.rank)
+
+    def __str__(self):
+        return "pikemen"
 
 class Squire(Piece):
     def __init__(self, color, location):
@@ -501,12 +641,18 @@ class Squire(Piece):
         self.directions = [(-1,-2),(-2,-1), (-2,1), (-1,2),
                             (1,2), (2,1), (2,-1), (1,-2)]
         super().__init__("SQ", "", color, location, self.rank)
-    
+        
+    def __str__(self):
+        return "squire"
+
 class Archer(Piece):
     def __init__(self, color, location):
         self.multipliers = 3
         self.rank = 8
         super().__init__("AR", "", color, location, self.rank)
+
+    def __str__(self):
+        return "archer"
 
 
 
