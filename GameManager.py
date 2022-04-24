@@ -9,9 +9,12 @@ import argparse, random
 # - RL?
 
 # IMPLIES:
-# - need get_piece_placement
-# - need get_choice
-# - need blue_lost
+# - FINISH SQUIRE, FINISH ARCHER MOVE CHECKING (i.e. if hit a castle green and
+# another move is possible beyond the green AND there is an enemy beyond, then
+# yield the move)
+# - AGENT FUNCTIONS: get_piece_placement, get_choice
+# - BOARD FUNCTIONS: get_all_moves, apply_move, remove_piece
+# Put a check that the castle hasn't been separated?
 
 
 agent_dict = {
@@ -59,7 +62,7 @@ if __name__ == "__main__":
                 print("Invalid move")
 
         else: # Brown turn
-            print("BROWN PLAYER"):
+            print("BROWN PLAYER")
             move = brown_player.get_choice(game_board.clone())
             if not game_board.apply_move(move):
                 print("Invalid move")
