@@ -11,8 +11,6 @@ class Board():
         self.brown_pieces = dict() # MAY BE REVISED # PIECES -> LOCATIONS
         self.brown_pieces_locations = dict() # LOCATIONS -> PIECES
         # Tuple of tuples, first is green, second is interior
-        # TODO: These are temporarily fixed coordinates (until piece placement
-        #       is implemented).
         self.blue_castle = [None, None]
         self.brown_castle = [None, None]
         self.blue_piece_counts = {"castle_green" : 0, "castle_interior" : 0,
@@ -26,7 +24,6 @@ class Board():
             "pikemen" : 4, "squire" : 1, "archer" : 1}
 
     # Return a clone of the Board instance, only copying the piece dictionaries
-    # TODO: MAKE SURE ALL CLASS MEMBERS ARE CLONED PROPERLY HERE
     def clone(self):
         new_board = Board()
         new_board.rough = self.rough
@@ -462,7 +459,7 @@ class Board():
 
 
 class Piece():
-    def __init__(self, name, number, color, location, rank):
+    def __init__(self, name, number, color, location, rank, directions):
         if color == "blue":
             self.rep = "\x1b[94m" + name + str(number)
         else:
@@ -473,9 +470,11 @@ class Piece():
         self.location = location
         self.rank = rank
         # Default directions (only Squire overrides these).
-        self.directions = [(-1,0),(-1,1),(0,1),(1,1),
-                           (1,0),(1,-1),(0,-1),(-1,-1)]
-
+        if directions == None:
+            self.directions = [(-1,0),(-1,1),(0,1),(1,1),
+                               (1,0),(1,-1),(0,-1),(-1,-1)]
+        else:
+            self.directions = directions
     # Define less than or equal functionality so that Piece instances can be
     # sorted using Python's sorted() function; this enables us to adhere to the
     # rank (King down to Archer), left-to-right (primary method of
@@ -504,6 +503,7 @@ class Piece():
                     self.location == board.brown_castle[0])
         
         for direction in self.directions:
+            past_green = False
             for multiplier in range(1,self.multipliers+1):
                 # IF SERGEANT AND MULTIPLIER > 1, stop searching 
                 # horizontally and vertically.
@@ -527,8 +527,21 @@ class Piece():
 
                 # Check if squire is jumping over a castle.
                 if self.rank == 7:
-                    
-                    break
+                    (i,j) = self.location
+                    if (j-new_loc[1]) in [-1,1]: 
+                        if i-new_loc[0] > 0:
+                            (x,y) = (-1,0)
+                        else:
+                            (x,y) = (1,0)
+                    else:
+                        if j-new_loc[1] > 0:
+                            (x,y) = (0,-1)
+                        else:
+                            (x,y) = (0,1)
+                    print((x,y), new_loc)
+                    if ((x+i,y+j) in [board.blue_castle[1],
+                                      board.brown_castle[1]]):
+                        break
 
                 # Check if a mounted unit is encountering rough terrain.
                 if self.rank in [2,3,4] and new_loc in board.rough:
@@ -546,6 +559,7 @@ class Piece():
                     # Archer can shoot past the green, so continue on if 
                     # archer:
                     if self.rank == 8:
+                        past_green = True
                         continue
                     break
 
@@ -570,46 +584,45 @@ class Piece():
                 if new_loc in opponent_locs.keys():
                     yield new_loc
                     break
+                
+                # Archer is past green, traversing empty cell.
+                if past_green:
+                    continue
+
                 yield new_loc
 
 class King(Piece):
     def __init__(self, color, location):
         self.multipliers = 2
         self.rank = 1
-        super().__init__("KG", "", color, location, self.rank)
+        super().__init__("KG", "", color, location, self.rank, None)
 
     def __str__(self):
         return "king"
 
-class Mounted(Piece):
-    # DAN
-    def __init__(self, name, number, color, location, rank):
-        super().__init__(name, number, color, location, rank)
-
-
-class Prince(Mounted):
+class Prince(Piece):
     def __init__(self, color, location):
         self.multipliers = 54
         self.rank = 2
-        super().__init__("PR", "", color, location, self.rank)
+        super().__init__("PR", "", color, location, self.rank, None)
 
     def __str__(self):
         return "prince"
 
-class Duke(Mounted):
+class Duke(Piece):
     def __init__(self, color, location):
         self.multipliers = 54
         self.rank = 3
-        super().__init__("DK", "", color, location, self.rank)
+        super().__init__("DK", "", color, location, self.rank, None)
 
     def __str__(self):
         return "duke"
 
-class Knight(Mounted):
+class Knight(Piece):
     def __init__(self, number, color, location):
         self.multipliers = 54
         self.rank = 4
-        super().__init__("K", number, color, location, self.rank)
+        super().__init__("K", number, color, location, self.rank, None)
 
     def __str__(self):
         return "knight"
@@ -619,7 +632,7 @@ class Sergeant(Piece):
         self.number = number
         self.multipliers = 12
         self.rank = 5
-        super().__init__("S", number, color, location, self.rank)
+        super().__init__("S", number, color, location, self.rank, None)
 
     def __str__(self):
         return "sergeant"
@@ -629,7 +642,7 @@ class Pikemen(Piece):
         self.number = number
         self.multipliers = 12
         self.rank = 6
-        super().__init__("P", number, color, location, self.rank)
+        super().__init__("P", number, color, location, self.rank, None)
 
     def __str__(self):
         return "pikemen"
@@ -640,8 +653,7 @@ class Squire(Piece):
         self.rank = 7
         self.directions = [(-1,-2),(-2,-1), (-2,1), (-1,2),
                             (1,2), (2,1), (2,-1), (1,-2)]
-        super().__init__("SQ", "", color, location, self.rank)
-        
+        super().__init__("SQ", "", color, location, self.rank, self.directions)
     def __str__(self):
         return "squire"
 
@@ -649,7 +661,7 @@ class Archer(Piece):
     def __init__(self, color, location):
         self.multipliers = 3
         self.rank = 8
-        super().__init__("AR", "", color, location, self.rank)
+        super().__init__("AR", "", color, location, self.rank, None)
 
     def __str__(self):
         return "archer"
