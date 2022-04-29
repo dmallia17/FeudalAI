@@ -29,9 +29,11 @@ class Board():
         new_board.rough = self.rough
         new_board.mountains = self.mountains
         new_board.blue_pieces = deepcopy(self.blue_pieces)
-        new_board.blue_pieces_locations = deepcopy(self.blue_pieces_locations)
+        new_board.blue_pieces_locations = {loc : piece for piece, loc in new_board.blue_pieces.items()}
+        #new_board.blue_pieces_locations = deepcopy(self.blue_pieces_locations)
         new_board.brown_pieces = deepcopy(self.brown_pieces)
-        new_board.brown_pieces_locations = deepcopy(self.brown_pieces_locations)
+        new_board.brown_pieces_locations = {loc : piece for piece, loc in new_board.brown_pieces.items()}
+        # new_board.brown_pieces_locations = deepcopy(self.brown_pieces_locations)
         new_board.blue_castle = self.blue_castle[:]
         new_board.brown_castle = self.brown_castle[:]
         new_board.blue_piece_counts = self.blue_piece_counts.copy()
@@ -323,13 +325,12 @@ class Board():
                         if loc_sub[0] < bounds[0] or loc_sub[0] > bounds[1]:
                             return False
                 else:
-                    if loc[0] < bounds[0] or loc[1] > bounds[1]:
+                    if loc[0] < bounds[0] or loc[0] > bounds[1]:
                         return False
             dp = self.blue_pieces
             dl = self.blue_pieces_locations
             c = self.blue_castle
             counts = self.blue_piece_counts
-
 
 
         self.add_piece(dp, dl, c, color, counts,
@@ -430,6 +431,9 @@ class Board():
         # move current piece
         # Special case: archer
         if new_location in opponent_locs:
+            # print(origin, " to ", new_location)
+            # self.display()
+
             # Delete opponent
             enemy_piece = opponent_locs[new_location]
             opponent_counts[str(enemy_piece)] -= 1 # Decrement count
@@ -445,6 +449,10 @@ class Board():
                 friendly_pieces[current_piece] = new_location
                 # Update the piece itself
                 current_piece.location = new_location
+
+            # self.display()
+            # print("ATTACKED ABOVE")
+            # exit()
         # Otherwise just moving to a new spot
         else:
             del friendly_locs[origin] # Remove from locations -> pieces
@@ -496,9 +504,11 @@ class Piece():
     def __str__(self):
         return self.rep
 
-    # TODO 1: Add Squire functionality.
-    # TODO 2: Test this.
     def get_moves(self, board, friendly_locs, opponent_locs):
+        return self.get_moves_sub(board, friendly_locs, opponent_locs)
+
+    # TODO: Fix Mounted Piece to not go over mountains/rough terrain
+    def get_moves_sub(self, board, friendly_locs, opponent_locs):
         on_green = (self.location == board.blue_castle[0]   or 
                     self.location == board.brown_castle[0])
         
