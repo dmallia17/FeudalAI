@@ -1,6 +1,7 @@
 # Implements base LocalSearch class and all sub-classes
 
 import random
+from copy import deepcopy
 
 class LocalSearch():
     def get_random_start(self, board, bounds):
@@ -77,6 +78,20 @@ class LocalSearch():
 
         return True
 
+    # For finding adjacent locations to a new interior location, where the
+    # castle green could be placed
+    def green_locs(self, castle_interior_location, current_piece_locations,
+        bounds):
+        ds = [(-1,0),(1,0),(0,-1),(0,1)]
+        locs = []
+        for d in ds:
+            (x,y) = (d[0] + castle_interior_location[0],
+                d[1] + castle_interior_location[1])
+            if self.in_bounds(x,y,bounds) and \
+                (x,y) not in current_piece_locations:
+                locs.append((x,y))
+        return locs
+
     def get_successor_states(self, config, board, bounds):
         successors = [] # Each successor is a configuration
         temp = list(config.values())
@@ -100,23 +115,37 @@ class LocalSearch():
 
             # Special case
             if "castle_interior" == piece:
-                # Filter to locations that have an adjacent space
-                def filter_green(castle_location):
-                    ds = [[-1,0],[1,0],[0,-1],[0,1]]
-                    for d in ds:
-                        (x,y) = (d[0] + castle_location[0], d[1] + castle_location[1])
-                        if self.in_bounds(x,y,bounds) and (x,y) not in current_piece_locations:
-                            return True
-                    return False 
-                all_possible_locations = filter(filter_green, all_possible_locations)
+                # For all possible places to put the interior...
                 for loc in all_possible_locations:
-                    
-                
-                
+                    green_locs = self.green_locs(loc, current_piece_locations,
+                        bounds)
+                    # For all possible places to put the green...
+                    # This may be none (empty list) in which case the loc for
+                    # the interior will be implicitly abandoned
+                    for green_loc in green_locs:
+                        successor_config = deepcopy(config)
+                        successor_config["castle_interior"] = loc
+                        successor_config["castle_green"] = green_loc
+                        successors.append(successor_config)
             else: # All other pieces
-                if type(locations) == list:
-                    # FINISH THIS
-                else:
+                if type(locations) == list: # Multiple piece types
+                    # Filter to appropriate new locations for pieces of this
+                    # type
+                    new_locations = [loc for loc in all_possible_locations \
+                        if self.valid_choice(piece, locations,
+                        (config["castle_green"], config["castle_interior"]),
+                        board)]
+                    # For each piece, for each possible new location, create a
+                    # new config where that piece has been moved there, and
+                    # append to successors
+                    for i in range(len(locations)):
+                        for loc in new_locations:
+                            # Must deepcopy, else lists will be linked across
+                            # successor configs
+                            successor_config = deepcopy(config)
+                            successor_config[piece][i] = loc
+                            successors.append(successor_config)
+                else: # Single piece types
                     # Filter to appropriate new locations for piece
                     new_locations = [loc for loc in all_possible_locations \
                         if self.valid_choice(piece, locations,
@@ -126,7 +155,9 @@ class LocalSearch():
                     # that piece has been moved there, and append to
                     # successors
                     for loc in new_locations:
-                        successor_config = config.copy()
+                        # Must deepcopy, else lists will be linked across
+                        # successor configs
+                        successor_config = deepcopy(config)
                         successor_config[piece] = loc
                         successors.append(successor_config)
 
