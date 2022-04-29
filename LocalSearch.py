@@ -4,7 +4,12 @@ import random
 from copy import deepcopy
 
 class LocalSearch():
-    def get_random_start(self, board, bounds):
+    # @param bounds a tuple of lower and upper row limits (lower = closer to
+    # top of the board)
+    def __init__(self, bounds):
+        self.bounds = bounds
+
+    def get_random_start(self, board):
         new_config = {"castle_green" : None, "castle_interior" : None,
             "king" : None, "prince" : None, "duke" : None,
             "knight": [None,None], "sergeant" : [None,None],
@@ -13,7 +18,7 @@ class LocalSearch():
 
         # Place castle interior, then castle green, both randomly (the latter
         # within the allowable neighbor locations)
-        all_locations = [(i,j) for i in range(bounds[0], bounds[1]+1)
+        all_locations = [(i,j) for i in range(self.bounds[0], self.bounds[1]+1)
                                for j in range(24)]
         castle_interior_location = random.choice(all_locations)
         new_config["castle_interior"] = castle_interior_location
@@ -23,7 +28,7 @@ class LocalSearch():
         for d in ds:
             (x,y) = (castle_interior_location[0] + d[0],
                 castle_interior_location[1] + d[1])
-            if self.in_bounds(x,y, bounds):
+            if self.in_bounds(x,y):
                 castle_adjacent.append((x,y))
 
         castle_green_loc = random.choice(castle_adjacent)
@@ -60,8 +65,8 @@ class LocalSearch():
     #     if location in board.rough:
     #         board.rough.remove(location)
 
-    def in_bounds(self, x, y, bounds):
-            return ((x >= bounds[0]) and (x <= bounds[1])
+    def in_bounds(self, x, y):
+            return ((x >= self.bounds[0]) and (x <= self.bounds[1])
                 and (y >= 0) and (y <= 23))
 
     # @param castle is a tuple of green, interior
@@ -80,19 +85,18 @@ class LocalSearch():
 
     # For finding adjacent locations to a new interior location, where the
     # castle green could be placed
-    def green_locs(self, castle_interior_location, current_piece_locations,
-        bounds):
+    def green_locs(self, castle_interior_location, current_piece_locations):
         ds = [(-1,0),(1,0),(0,-1),(0,1)]
         locs = []
         for d in ds:
             (x,y) = (d[0] + castle_interior_location[0],
                 d[1] + castle_interior_location[1])
-            if self.in_bounds(x,y,bounds) and \
+            if self.in_bounds(x,y) and \
                 (x,y) not in current_piece_locations:
                 locs.append((x,y))
         return locs
 
-    def get_successor_states(self, config, board, bounds):
+    def get_successor_states(self, config, board):
         successors = [] # Each successor is a configuration
         temp = list(config.values())
         current_piece_locations = []
@@ -104,7 +108,7 @@ class LocalSearch():
                 current_piece_locations.append(loc)
 
         all_possible_locations = [(i,j)
-            for i in range(bounds[0], bounds[1]+1) \
+            for i in range(self.bounds[0], self.bounds[1]+1) \
             for j in range(24) if (i,j) not in current_piece_locations]
 
 
@@ -117,8 +121,7 @@ class LocalSearch():
             if "castle_interior" == piece:
                 # For all possible places to put the interior...
                 for loc in all_possible_locations:
-                    green_locs = self.green_locs(loc, current_piece_locations,
-                        bounds)
+                    green_locs = self.green_locs(loc, current_piece_locations)
                     # For all possible places to put the green...
                     # This may be none (empty list) in which case the loc for
                     # the interior will be implicitly abandoned
@@ -132,7 +135,7 @@ class LocalSearch():
                     # Filter to appropriate new locations for pieces of this
                     # type
                     new_locations = [loc for loc in all_possible_locations \
-                        if self.valid_choice(piece, locations,
+                        if self.valid_choice(piece, loc,
                         (config["castle_green"], config["castle_interior"]),
                         board)]
                     # For each piece, for each possible new location, create a
