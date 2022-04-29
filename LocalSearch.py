@@ -4,12 +4,15 @@ import random
 from copy import deepcopy
 
 class LocalSearch():
-    # @param bounds a tuple of lower and upper row limits (lower = closer to
-    # top of the board)
-    def __init__(self, bounds):
+    # @param board      an instance of the Board class - only really needed
+    #                   for the terrain
+    # @param bounds     a tuple of lower and upper row limits (lower = closer
+    #                   to top of the board)
+    def __init__(self, board, bounds):
+        self.board = board
         self.bounds = bounds
 
-    def get_random_start(self, board):
+    def get_random_start(self):
         new_config = {"castle_green" : None, "castle_interior" : None,
             "king" : None, "prince" : None, "duke" : None,
             "knight": [None,None], "sergeant" : [None,None],
@@ -44,7 +47,7 @@ class LocalSearch():
                 new_list = []
                 for _ in locations:
                     piece_location = random.choice(all_locations)
-                    while not self.valid_choice(piece, piece_location, (castle_green_loc, castle_interior_location), board):
+                    while not self.valid_choice(piece, piece_location, (castle_green_loc, castle_interior_location)):
                         piece_location = random.choice(all_locations)
                     new_list.append(piece_location)
                     all_locations.remove(piece_location)
@@ -52,7 +55,7 @@ class LocalSearch():
                 new_config[piece] = new_list
             else:
                 piece_location = random.choice(all_locations)
-                while not self.valid_choice(piece, piece_location, (castle_green_loc, castle_interior_location), board):
+                while not self.valid_choice(piece, piece_location, (castle_green_loc, castle_interior_location)):
                     piece_location = random.choice(all_locations)
                 new_config[piece] = piece_location
                 all_locations.remove(piece_location)
@@ -70,12 +73,12 @@ class LocalSearch():
                 and (y >= 0) and (y <= 23))
 
     # @param castle is a tuple of green, interior
-    def valid_choice(self, piece, location, castle, board):
-        if location in board.mountains and location not in castle:
+    def valid_choice(self, piece, location, castle):
+        if location in self.board.mountains and location not in castle:
             return False
 
         if (piece in ["prince", "duke", "knight"] and 
-            location in board.rough and location not in castle):
+            location in self.board.rough and location not in castle):
             return False
 
         if (piece in ["archer", "squire"] and location == castle[1]):
@@ -96,7 +99,7 @@ class LocalSearch():
                 locs.append((x,y))
         return locs
 
-    def get_successor_states(self, config, board):
+    def get_successor_states(self, config):
         successors = [] # Each successor is a configuration
         temp = list(config.values())
         current_piece_locations = []
@@ -131,13 +134,15 @@ class LocalSearch():
                         successor_config["castle_green"] = green_loc
                         successors.append(successor_config)
             else: # All other pieces
+                # Uncomment the below "continue" to quickly limit testing to
+                # castle placement
+                # continue
                 if type(locations) == list: # Multiple piece types
                     # Filter to appropriate new locations for pieces of this
                     # type
                     new_locations = [loc for loc in all_possible_locations \
                         if self.valid_choice(piece, loc,
-                        (config["castle_green"], config["castle_interior"]),
-                        board)]
+                        (config["castle_green"], config["castle_interior"]))]
                     # For each piece, for each possible new location, create a
                     # new config where that piece has been moved there, and
                     # append to successors
@@ -152,8 +157,7 @@ class LocalSearch():
                     # Filter to appropriate new locations for piece
                     new_locations = [loc for loc in all_possible_locations \
                         if self.valid_choice(piece, locations,
-                        (config["castle_green"], config["castle_interior"]),
-                        board)]
+                        (config["castle_green"], config["castle_interior"]))]
                     # For each possible new location, create a new config where
                     # that piece has been moved there, and append to
                     # successors
@@ -167,8 +171,8 @@ class LocalSearch():
         return successors
 
 
-    def evaluate_config(self, board):
-        return self.ways_onto_castle_green(board)
+    def evaluate_config(self, config):
+        return self.ways_onto_castle_green(config)
 
     ##########################
     ####### HEURISTICS #######
@@ -177,7 +181,7 @@ class LocalSearch():
     # NOTE: May want to count "half a way onto the green" if there is rough
     # terrain, as only mounted units would be forbidden from using this
     # approach
-    def ways_onto_castle_green(self, board):
+    def ways_onto_castle_green(self, config):
         pass
 
     # Some measure of royalty being protected / "avengeable"
