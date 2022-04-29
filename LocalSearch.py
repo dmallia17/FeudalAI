@@ -99,8 +99,7 @@ class LocalSearch():
                 locs.append((x,y))
         return locs
 
-    def get_successor_states(self, config):
-        successors = [] # Each successor is a configuration
+    def extract_piece_locations(self, config):
         temp = list(config.values())
         current_piece_locations = []
         for loc in temp:
@@ -110,9 +109,19 @@ class LocalSearch():
             else:
                 current_piece_locations.append(loc)
 
-        all_possible_locations = [(i,j)
+        return current_piece_locations
+
+    def get_all_possible_locations(self, config):
+        return [(i,j)
             for i in range(self.bounds[0], self.bounds[1]+1) \
-            for j in range(24) if (i,j) not in current_piece_locations]
+            for j in range(24) \
+                if (i,j) not in self.extract_piece_locations(config)]
+
+    def get_successor_states(self, config):
+        successors = [] # Each successor is a configuration
+        temp = list(config.values())
+        current_piece_locations = self.extract_piece_locations(config)
+        all_possible_locations = self.get_all_possible_locations(config)
 
 
         for piece, locations in config.items():
@@ -170,30 +179,92 @@ class LocalSearch():
 
         return successors
 
+    def get_random_successor(self, config):
+        # Cannot be the castle green; if a multi-piece type, pick one piece
+        p = list(config.keys())
+        p.remove("castle_green")
+        chosen_piece = random.choice(p)
+        successor_config = deepcopy(config)
+        all_possible_locations = self.get_all_possible_locations(config)
+        current_piece_locations = self.extract_piece_locations(config)
 
+        if chosen_piece == "castle_interior":
+            potential_location = random.choice(all_possible_locations)
+            green_locs = self.green_locs(potential_location,
+                current_piece_locations)
+            while 0 == len(green_locs):
+                potential_location = random.choice(all_possible_locations)
+                green_locs = self.green_locs(potential_location,
+                    current_piece_locations)
+
+            green_loc_final = random.choice(green_locs)
+            successor_config["castle_interior"] = potential_location
+            successor_config["castle_green"] = green_loc_final
+
+        elif chosen_piece in ["knight", "sergeant", "pikemen"]: # Multi-pieces
+            new_loc = random.choice(all_possible_locations)
+            index = random.choice(list(range(len(config[chosen_piece]))))
+            successor_config[chosen_piece][index] = new_loc
+        else: # Single pieces
+            new_loc = random.choice(all_possible_locations)
+            successor_config[chosen_piece] = new_loc
+
+        return successor_config
+
+    # TODO: ADD FUNCTIONS AS THEY ARE COMPLETED
+    #       ADD WEIGHTS AS CLASS MEMBERS, FOR USE WITH GRID SEARCH
     def evaluate_config(self, config):
         return self.ways_onto_castle_green(config)
 
     ##########################
     ####### HEURISTICS #######
     ##########################
-    # Number of ways on to the castle green (max 7)
+    # HIGHER VALUES SHOULD BE "BETTER" CONFIGURATIONS
+
+    # DAN
+    # 1. Number of ways on to the castle green (max 7)
     # NOTE: May want to count "half a way onto the green" if there is rough
     # terrain, as only mounted units would be forbidden from using this
     # approach
     def ways_onto_castle_green(self, config):
+        # return should be 1 - (normalized value)
         pass
 
-    # Some measure of royalty being protected / "avengeable"
+    # Artjom
+    # 2. King protected/shielded by terrain (half a "point" for rough, full for
+    # mountain)
+    # MAX: can normalize w.r.t. forward direction and three diagonals
 
-    # Some measure of king, squire, archer near each other and the castle
-    
-    # Some measure of coverage of the enemy side of the board (max = 12 * 24?)
+    # DAN
+    # 3. Some measure of pieces being too close to the middle boundary,
+    # especially castle and king
+    # MAX: 11 (assuming 0=next to boundary)
 
-    # Some measure of total pieces "avengeable"
+    # DAN
+    # 4. Some measure of royalty (king, prince, duke) "avengeable"
+    # Could be treated as yes/no for each piece
 
-    # Some notion of flanks being covered or board control (or both?)
+    # Artjom
+    # 5. Some measure of king, squire, archer near each other and the castle
+    # MAX: Maximized by the king, squire, archer and castle each in a corner of
+    # the board
+    # Could be Euclidean distance?
 
+    # Artjom
+    # 6. Some measure of coverage of the enemy side of the board
+    # MAX: 12 * 24 - terrain?
+
+    # DAN
+    # 7. Some measure of remainder pieces "avengeable"
+    # Could be treated as yes/no for each piece
+
+    # HOLD OFF ON THE BELOW
+    # 8. Some notion of flanks being covered or board control (or both?)
+
+    # 9. Royalty shielded by friendly pieces
+
+    # TODO (?): Write a meta algorithm for improving the weights based on
+    # subsequent game performance (could just use the greedy/random agent?)
 
 # Based on the pseudocode provided on page 111 (and section 4.1.1, pages
 # 111-114) of Russell & Norvig's "Artificial Intelligence" (4th edition)
