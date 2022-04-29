@@ -203,14 +203,28 @@ class HillClimbing(LocalSearch):
     # chosen; having this as a parameter allows for easy reuse in a random
     # restarts context
     def get_piece_placement(self, initial=None):
-        start = initial if initial is not None else self.get_random_start()
+        current = initial if initial is not None else self.get_random_start()
+        while True:
+            neighbor = self.choose_successor(current)
+            if self.evaluate_config(neighbor) <= self.evaluate_config(current):
+                return current
+            current = neighbor
 
-    def choose_successor(self):
+    def choose_successor(self, current_config):
         pass
 
 
 class HillClimbingGreedy(HillClimbing):
-    def choose_successor(self):
-        pass
+    def choose_successor(self, current_config):
+        successors = self.get_successor_states(current_config)
+        best = successors[0]
+        best_value = self.evaluate_config(best)
+        for c in successors[1:]:
+            value = self.evaluate_config(c)
+            if value > best_value:
+                best_value = value
+                best = c
+
+        return best
 
 
