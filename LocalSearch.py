@@ -191,10 +191,15 @@ class LocalSearch():
     # Some notion of flanks being covered or board control (or both?)
 
 
-
+# Based on the pseudocode provided on page 111 (and section 4.1.1, pages
+# 111-114) of Russell & Norvig's "Artificial Intelligence" (4th edition)
 class HillClimbing(LocalSearch):
-    def get_piece_placement(self):
-        pass
+    # Implements the basic form of the Hill Climbing algorithm
+    # @param an initial configuration - if not provided a random one will be
+    # chosen; having this as a parameter allows for easy reuse in a random
+    # restarts context
+    def get_piece_placement(self, initial=None):
+        start = initial if initial is not None else self.get_random_start()
 
     def choose_successor(self):
         pass
