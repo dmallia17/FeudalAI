@@ -226,9 +226,33 @@ class LocalSearch():
     # NOTE: May want to count "half a way onto the green" if there is rough
     # terrain, as only mounted units would be forbidden from using this
     # approach
+    # Also, a location that is out of bounds would naturally remove a way onto
+    # the green
     def ways_onto_castle_green(self, config):
-        # return should be 1 - (normalized value)
-        pass
+        green_loc = config["castle_green"]
+        count = 7 # Max possible is 7
+        adjacents = [(-1,0),(-1,1),(0,1),(1,1), (1,0),(1,-1),(0,-1),(-1,-1)]
+
+        # For every square around the green...
+        for adj in adjacents:
+            adj_loc = (green_loc[0] + adj[0], green_loc[1] + adj[1])
+
+            # Ignore castle interior
+            if (adj_loc == config["castle_interior"]):
+                continue
+
+            # If out of bounds or adjacent is a mountain, subtract 1
+            if not self.in_bounds(*adj_loc) or adj_loc in self.board.mountains:
+                count -= 1
+
+            # If rough terrain is adjacent, count it as "half" blocked
+            if adj_loc in self.board.rough:
+                count -= 0.5
+
+        # Normalizes the count to a value between 0 and 1, and returns 1 minus
+        # that value so as to enforce max value = best config (i.e. worst case
+        # is 7 ways on to the green, thus 1 - 7/7 = 0 would be the worst)
+        return 1 - (count / 7)
 
     # Artjom
     # 2. King protected/shielded by terrain (half a "point" for rough, full for
@@ -273,7 +297,7 @@ class HillClimbing(LocalSearch):
     # @param an initial configuration - if not provided a random one will be
     # chosen; having this as a parameter allows for easy reuse in a random
     # restarts context
-    def get_piece_placement(self, initial=None):
+    def hill_climb(self, initial=None):
         current = initial if initial is not None else self.get_random_start()
         while True:
             neighbor = self.choose_successor(current)
@@ -283,6 +307,19 @@ class HillClimbing(LocalSearch):
 
     def choose_successor(self, current_config):
         pass
+
+    def get_piece_placement(self, restarts=1):
+        best_config = self.hill_climb()
+        best_value = self.evaluate_config(best_config)
+
+        for _ in range(1, restarts):
+            new_config = self.hill_climb()
+            new_value = self.evaluate_config(new_config)
+            if  new_value > best_value:
+                best_config = new_config
+                best_value = new_value
+
+        return best_config
 
 
 class HillClimbingGreedy(HillClimbing):
@@ -297,5 +334,22 @@ class HillClimbingGreedy(HillClimbing):
                 best = c
 
         return best
+
+class HillClimbingFirstChoice(HillClimbing):
+    def choose_successor(self, current_config):
+        # Only try a maximum of 4500 new configs
+        num_configs = 4500
+        current_config_value = self.evaluate_config(current_config)
+
+        while num_configs > 0:
+            new_config = self.get_random_successor(current_config)
+            # If a better config has been found, return it, else decrement and
+            # continue
+            if self.evaluate_config(new_config) > current_config_value:
+                return new_config
+            num_configs -= 1
+
+        # If nothing better is found, return current_config to terminate search
+        return current_config
 
 
