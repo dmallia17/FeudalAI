@@ -26,8 +26,8 @@ class Board():
     # Return a clone of the Board instance, only copying the piece dictionaries
     def clone(self):
         new_board = Board()
-        new_board.rough = self.rough
-        new_board.mountains = self.mountains
+        new_board.rough = self.rough.copy()
+        new_board.mountains = self.mountains.copy()
         new_board.blue_pieces = deepcopy(self.blue_pieces)
         new_board.blue_pieces_locations = {loc : piece for piece, loc in new_board.blue_pieces.items()}
         #new_board.blue_pieces_locations = deepcopy(self.blue_pieces_locations)
@@ -548,7 +548,6 @@ class Piece():
                             (x,y) = (0,-1)
                         else:
                             (x,y) = (0,1)
-                    print((x,y), new_loc)
                     if ((x+i,y+j) in [board.blue_castle[1],
                                       board.brown_castle[1]]):
                         break
