@@ -8,9 +8,21 @@ class LocalSearch():
     #                   for the terrain
     # @param bounds     a tuple of lower and upper row limits (lower = closer
     #                   to top of the board)
-    def __init__(self, board, bounds):
+    def __init__(self, board, color,
+                 ways_onto_castle_green_weight=1,
+                 king_shielded_weight=1,
+                 opponent_coverage_weight=1,
+                 proximity_to_boundary_weight=1):
         self.board = board
-        self.bounds = bounds
+        self.color = color
+        self.ways_onto_castle_green_weight = ways_onto_castle_green_weight
+        self.king_shielded_weight = king_shielded_weight
+        self.opponent_coverage_weight = opponent_coverage_weight
+        self.proximity_to_boundary_weight = proximity_to_boundary_weight
+        if "blue" == color:
+            self.bounds = (0,11)
+        else:
+            self.bounds = (12,23)
 
     def get_random_start(self):
         new_config = {"castle_green" : None, "castle_interior" : None,
@@ -203,10 +215,16 @@ class LocalSearch():
 
         elif chosen_piece in ["knight", "sergeant", "pikemen"]: # Multi-pieces
             new_loc = random.choice(all_possible_locations)
+            while not self.valid_choice(chosen_piece, new_loc,
+                        (config["castle_green"], config["castle_interior"])):
+                new_loc = random.choice(all_possible_locations)
             index = random.choice(list(range(len(config[chosen_piece]))))
             successor_config[chosen_piece][index] = new_loc
         else: # Single pieces
             new_loc = random.choice(all_possible_locations)
+            while not self.valid_choice(chosen_piece, new_loc,
+                        (config["castle_green"], config["castle_interior"])):
+                new_loc = random.choice(all_possible_locations)
             successor_config[chosen_piece] = new_loc
 
         return successor_config
@@ -214,7 +232,15 @@ class LocalSearch():
     # TODO: ADD FUNCTIONS AS THEY ARE COMPLETED
     #       ADD WEIGHTS AS CLASS MEMBERS, FOR USE WITH GRID SEARCH
     def evaluate_config(self, config):
-        return self.ways_onto_castle_green(config)
+        return (    (self.ways_onto_castle_green(config) *
+                     self.ways_onto_castle_green_weight)
+                +   (self.king_shielded(config,3) *
+                     self.king_shielded_weight)
+                +   (self.opponent_coverage(config) *
+                     self.opponent_coverage_weight)
+                +   (self.proximity_to_boundary(config) *
+                     self.proximity_to_boundary_weight)
+                )
 
     ##########################
     ####### HEURISTICS #######
@@ -257,12 +283,52 @@ class LocalSearch():
     # Artjom
     # 2. King protected/shielded by terrain (half a "point" for rough, full for
     # mountain)
-    # MAX: can normalize w.r.t. forward direction and three diagonals
+    # MAX:  3k + 4, where k is a constant >= 1 defining the relative
+    #       importance of "forward" protection of the king relative to
+    #       backwards/sideways protection.
+    #       For now k = 2, so it's twice as important for the king to have
+    #       forward protection relative to the enemy side.
+    def king_shielded(self, config, k):
+        king_loc = config["king"]
+        # set forward weights (forward is weight k, side and back is weight 1).
+        if self.bounds == (0,11):
+            f = {1:k, 0:1, -1:1}
+        else:
+            f = {-1:k, 0:1, 1:1}
+        ds = [(-1,-1),(-1,0),(-1,1),(0,1),
+              (1,1),(1,0),(1,-1),(0,-1)]
+
+        maximum = 3.0*k + 4.0
+        res = 0.0
+        for (i,j) in ds:
+            (x,y) = (i+king_loc[0],j+king_loc[1])
+            if (x,y) in self.board.mountains:
+                res += f[i]
+            elif (x,y) in self.board.rough:
+                res += f[i]/2.0
+
+        return res/maximum
 
     # DAN
     # 3. Some measure of pieces being too close to the middle boundary,
     # especially castle and king
-    # MAX: 11 (assuming 0=next to boundary)
+    # MAX: 11 (assuming 0=next to boundary) * 14 (13 pieces + castle interior)
+    def proximity_to_boundary(self, config):
+        collective_distance = 0
+        boundary = 11 if self.color == "blue" else 12
+
+        pieces = list(config.keys())
+        pieces.remove("castle_green")
+        for piece in pieces:
+            locs = config[piece]
+            if type(locs) == list: # Multi-piece types
+                for ind_piece in locs:
+                    collective_distance += abs(ind_piece[0] - boundary)
+            else: # Single piece
+                collective_distance += abs(locs[0] - boundary)
+
+        return collective_distance / 154
+
 
     # DAN
     # 4. Some measure of royalty (king, prince, duke) "avengeable"
@@ -274,9 +340,48 @@ class LocalSearch():
     # the board
     # Could be Euclidean distance?
 
+
+
     # Artjom
     # 6. Some measure of coverage of the enemy side of the board
-    # MAX: 12 * 24 - terrain?
+    # MAX: 12 * 24 - mountains
+    # TODO - possibly refine for dead spots that are initially unreachable
+    # due to terrain blocking that area of the board.
+    # TODO - check for uniqueness of opponents
+    def opponent_coverage(self, config):
+        maximum = 12.0*24.0
+        if self.bounds == (0,11):
+            opponent_bounds = (12,23)
+        else:
+            opponent_bounds = (0,11)
+
+        # Subtract mountains from maximum heuristic score.
+        for (x,y) in self.board.mountains:
+            if x >= opponent_bounds[0] and x <= opponent_bounds[1]:
+                maximum -= 1
+
+        res = 0.0
+
+        temp_board = self.board.clone()
+        temp_board.place_pieces(self.color, config)
+
+        if "blue" == self.color:
+            pieces = temp_board.blue_pieces
+            friendly_locs = temp_board.blue_pieces_locations
+            opponent_locs = temp_board.brown_pieces_locations
+        else:
+            pieces = temp_board.brown_pieces
+            friendly_locs = temp_board.brown_pieces_locations
+            opponent_locs = temp_board.blue_pieces_locations
+
+        # Iterate over all piece moves and count moves that go into
+        # opponent territory.
+        for piece in pieces:
+            for (x,y) in piece.get_moves(temp_board,
+                                         friendly_locs,opponent_locs):
+                if x >= opponent_bounds[0] and x <= opponent_bounds[1]:
+                    res += 1.0
+        return res/maximum
 
     # DAN
     # 7. Some measure of remainder pieces "avengeable"
