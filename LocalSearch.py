@@ -1,5 +1,6 @@
 # Implements base LocalSearch class and all sub-classes
 
+import math
 import random
 from copy import deepcopy
 
@@ -9,10 +10,10 @@ class LocalSearch():
     # @param bounds     a tuple of lower and upper row limits (lower = closer
     #                   to top of the board)
     def __init__(self, board, color,
-                 ways_onto_castle_green_weight=1,
-                 king_shielded_weight=1,
-                 opponent_coverage_weight=1,
-                 proximity_to_boundary_weight=1):
+                 ways_onto_castle_green_weight=.3,
+                 king_shielded_weight=.3,
+                 opponent_coverage_weight=.2,
+                 proximity_to_boundary_weight=.2):
         self.board = board
         self.color = color
         self.ways_onto_castle_green_weight = ways_onto_castle_green_weight
@@ -456,5 +457,41 @@ class HillClimbingFirstChoice(HillClimbing):
 
         # If nothing better is found, return current_config to terminate search
         return current_config
+
+class SimulatedAnnealing(LocalSearch):
+    
+    # @param t is initial temperature.
+    # @param c is a constant 0 < c < 1 which controls cooling.
+    def simulated_annealing(self, initial, t_init, alpha):
+        
+        current = initial
+        time = 1
+        while True:
+            # exponential temperature decrease.
+            t_curr = t_init * (math.pow(alpha,time))
+            # effective "zero" temp.
+            if t_curr < .000001:
+                break
+            succ = self.get_random_successor(current)
+            
+            # Calculate value difference between current and random config.
+            delta = self.evaluate_config(current) - self.evaluate_config(succ)
+            
+            # If delta < 0, value of the random config is greater, i.e. 
+            # we found a better state. So go there.
+            if delta < 0:
+                current = succ
+            # If delta > 0, we pick the worse state with a probability 
+            # in accord to the Boltzmann distribution.
+            else:
+                rand = random.uniform(0,1)
+                if rand < (math.exp(((-delta)/t_curr))):
+                    current = succ
+            time += 1
+        return current
+
+
+
+
 
 
