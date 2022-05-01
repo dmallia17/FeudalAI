@@ -5,12 +5,12 @@ if __name__ == "__main__":
     b = Board()
     b.parse_terrain("terrain.txt")
     # Setup blue
-    blue_local_search = LocalSearch(b, (0,11))
+    blue_local_search = LocalSearch(b, "blue")
     blue_config = blue_local_search.get_random_start()
     # print(blue_config)
     print(b.place_pieces("blue", blue_config))
     # Setup brown
-    print(b.place_pieces("brown", LocalSearch(b, (12,23)).get_random_start()))
+    print(b.place_pieces("brown", LocalSearch(b, "brown").get_random_start()))
     # print(b.blue_pieces)
     # print(b.blue_pieces_locations)
     # print(b.blue_piece_counts)
@@ -20,4 +20,12 @@ if __name__ == "__main__":
         if successor[k] != blue_config[k]:
             print(k, v)
             print(k, successor[k])
-    b.display()
+    #print(blue_local_search.evaluate_config(blue_config))
+    #b.display()
+
+    b2 = Board()
+    b2.parse_terrain("terrain.txt")
+    new_config = HillClimbingFirstChoice(b2, "blue").get_piece_placement()
+    print(b2.place_pieces("blue", new_config))
+    print(new_config)
+    b2.display()
