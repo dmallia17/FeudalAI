@@ -32,7 +32,8 @@ combinatorial explosion induced by permitting moving up to all 13 beginning
 pieces in a single move, in any order. Our plan is to restrict this to 4 moves,
 still permitting the ability to wipe out all royalty in a single turn; at the
 moment we are testing with 1 move.
-- For now we are going to work with a single board configuration, rather than experimenting with varying the board.
+- For now we are going to work with a single board configuration, rather than
+experimenting with varying the board.
 
 ### Implementation
 We are implementing the game as a terminal application, where all visualization
@@ -44,12 +45,21 @@ placed their pieces.
 
 ![Setup screenshot](Images/FeudalSetup1.png)
 
+This particular board setup was taken from a
+[video about the original 3M version of the game.
+](https://www.youtube.com/watch?v=LUV_zHb_xnM)
 
 ### Visual Guide:
 The following describes the mapping of visual aspects to game features:
 
-- Grid - row and column indicators, indexed from 0 to 23, are present; for ease of identifying the center of each cell (which is 3 spaces wide), the center is marked by a bold underlining.
-- Pieces - a two-character indicator (the first letter is always in the middle space of the cell), where the second character may be a number if it is indicating a piece type of which there are multiple (knights, pikemen, sergeants). These indicators take on colors appropriate to the team, either blue or brown.
+- Grid - row and column indicators, indexed from 0 to 23, are present; for ease
+of identifying the center of each cell (which is 3 spaces wide), the center is
+marked by a bold underlining.
+- Pieces - a two-character indicator (the first letter is always in the middle
+space of the cell), where the second character may be a number if it is
+indicating a piece type of which there are multiple (knights, pikemen,
+sergeants). These indicators take on colors appropriate to the team, either
+blue or brown.
 - Mountains - green background
 - Rough terrain - white background
 - Castle green - cyan background
