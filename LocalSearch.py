@@ -15,7 +15,8 @@ class LocalSearch():
                  opponent_coverage_weight=1,
                  proximity_to_boundary_weight=1,
                  royalty_avengeable_weight=1,
-                 non_royalty_avengeable_weight=1):
+                 non_royalty_avengeable_weight=1,
+                 proximity_pieces_weight=1):
         self.board = board
         self.color = color
         self.ways_onto_castle_green_weight = ways_onto_castle_green_weight
@@ -24,6 +25,7 @@ class LocalSearch():
         self.proximity_to_boundary_weight = proximity_to_boundary_weight
         self.royalty_avengeable_weight = royalty_avengeable_weight
         self.non_royalty_avengeable_weight = non_royalty_avengeable_weight
+        self.proximity_pieces_weight = proximity_pieces_weight
         if "blue" == color:
             self.bounds = (0,11)
         else:
@@ -249,6 +251,8 @@ class LocalSearch():
                      self.royalty_avengeable_weight)
                 +   (self.non_royalty_avengeable(config) *
                      self.non_royalty_avengeable_weight)
+                +   (self.proximity_pieces(config) *
+                     self.proximity_pieces_weight)
                 )
 
     ##########################
@@ -316,6 +320,7 @@ class LocalSearch():
             elif (x,y) in self.board.rough:
                 res += f[i]/2.0
 
+        print(res/maximum)
         return res/maximum
 
     # DAN
@@ -375,8 +380,27 @@ class LocalSearch():
     # MAX: Maximized by the king, squire, archer and castle each in a corner of
     # the board
     # Could be Euclidean distance?
+    def proximity_pieces(self, config):
+       
+        maximum = 118.99019513592785
 
+        # Euclidean Distance
+        def d(p1,p2):
+            return math.sqrt(math.pow((p1[0]-p2[0]),2) + 
+                             math.pow((p1[1]-p2[1]),2))
+    
+        pts =   [   config["king"],
+                    config["castle_interior"],
+                    config["squire"],
+                    config["archer"]
+                ]
 
+        res = 0.0
+        for i in range(3):
+            for j in range((i+1),4):
+                res += d(pts[i],pts[j])
+    
+        return 1 - (res/maximum)
 
     # Artjom
     # 6. Some measure of coverage of the enemy side of the board
@@ -396,8 +420,6 @@ class LocalSearch():
             if x >= opponent_bounds[0] and x <= opponent_bounds[1]:
                 maximum -= 1
 
-        res = 0.0
-
         temp_board = self.board.clone()
         temp_board.place_pieces(self.color, config)
 
@@ -410,14 +432,16 @@ class LocalSearch():
             friendly_locs = temp_board.brown_pieces_locations
             opponent_locs = temp_board.blue_pieces_locations
 
+        coverage = set() 
+
         # Iterate over all piece moves and count moves that go into
         # opponent territory.
         for piece in pieces:
             for (x,y) in piece.get_moves(temp_board,
                                          friendly_locs,opponent_locs):
                 if x >= opponent_bounds[0] and x <= opponent_bounds[1]:
-                    res += 1.0
-        return res/maximum
+                    coverage.add((x,y))
+        return len(coverage)/maximum
 
     # DAN
     # 7. Some measure of remainder pieces "avengeable"
