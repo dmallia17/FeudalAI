@@ -25,7 +25,10 @@ if __name__ == "__main__":
 
     b2 = Board()
     b2.parse_terrain("terrain.txt")
-    new_config = HillClimbingFirstChoice(b2, "blue").get_piece_placement()
+    searcher = HillClimbingFirstChoice(b2, "blue")
+    new_config = searcher.get_piece_placement()
     print(b2.place_pieces("blue", new_config))
     print(new_config)
     b2.display()
+    # print(searcher.royalty_avengeable(new_config))
+    # print(searcher.non_royalty_avengeable(new_config))

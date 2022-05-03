@@ -10,16 +10,20 @@ class LocalSearch():
     # @param bounds     a tuple of lower and upper row limits (lower = closer
     #                   to top of the board)
     def __init__(self, board, color,
-                 ways_onto_castle_green_weight=.3,
-                 king_shielded_weight=.3,
-                 opponent_coverage_weight=.2,
-                 proximity_to_boundary_weight=.2):
+                 ways_onto_castle_green_weight=1,
+                 king_shielded_weight=1,
+                 opponent_coverage_weight=1,
+                 proximity_to_boundary_weight=1,
+                 royalty_avengeable_weight=1,
+                 non_royalty_avengeable_weight=1):
         self.board = board
         self.color = color
         self.ways_onto_castle_green_weight = ways_onto_castle_green_weight
         self.king_shielded_weight = king_shielded_weight
         self.opponent_coverage_weight = opponent_coverage_weight
         self.proximity_to_boundary_weight = proximity_to_boundary_weight
+        self.royalty_avengeable_weight = royalty_avengeable_weight
+        self.non_royalty_avengeable_weight = non_royalty_avengeable_weight
         if "blue" == color:
             self.bounds = (0,11)
         else:
@@ -241,6 +245,10 @@ class LocalSearch():
                      self.opponent_coverage_weight)
                 +   (self.proximity_to_boundary(config) *
                      self.proximity_to_boundary_weight)
+                +   (self.royalty_avengeable(config) *
+                     self.royalty_avengeable_weight)
+                +   (self.non_royalty_avengeable(config) *
+                     self.non_royalty_avengeable_weight)
                 )
 
     ##########################
@@ -333,7 +341,34 @@ class LocalSearch():
 
     # DAN
     # 4. Some measure of royalty (king, prince, duke) "avengeable"
-    # Could be treated as yes/no for each piece
+    # Could be treated as yes/no for each piece - under this, the max value
+    # would be 3 (1 for each yes)
+    def royalty_avengeable(self, config):
+        # Create a temporary board for placing the pieces and reviewing
+        # "avenging" moves
+        temp_board = self.board.clone()
+        temp_board.place_pieces(self.color, config)
+        if "blue" == self.color:
+            pieces = temp_board.blue_pieces
+            friendly_locs = temp_board.blue_pieces_locations
+        else:
+            pieces = temp_board.brown_pieces
+            friendly_locs = temp_board.brown_pieces_locations
+
+        royalty_locs = {v for k,v in config.items() if k in {"king", "prince",
+            "duke"}}
+        royalty_locs_covered = set()
+
+        # Iterate over all piece moves and if a royalty position is covered,
+        # add it to the covered set
+        for piece in pieces:
+            for (x,y) in piece.get_moves_w_avg(temp_board, friendly_locs,
+                dict()):
+                if (x,y) in royalty_locs:
+                    royalty_locs_covered.add((x,y))
+
+        return (len(royalty_locs_covered) / 3)
+
 
     # Artjom
     # 5. Some measure of king, squire, archer near each other and the castle
@@ -387,6 +422,37 @@ class LocalSearch():
     # DAN
     # 7. Some measure of remainder pieces "avengeable"
     # Could be treated as yes/no for each piece
+    def non_royalty_avengeable(self, config):
+        # Create a temporary board for placing the pieces and reviewing
+        # "avenging" moves
+        temp_board = self.board.clone()
+        temp_board.place_pieces(self.color, config)
+        if "blue" == self.color:
+            pieces = temp_board.blue_pieces
+            friendly_locs = temp_board.blue_pieces_locations
+        else:
+            pieces = temp_board.brown_pieces
+            friendly_locs = temp_board.brown_pieces_locations
+
+        non_royalty_locs = set()
+        for k,v in config.items():
+            if k in {"knight", "sergeant", "pikemen", "squire", "archer"}:
+                if type(v) == list:
+                    for v_sub in v:
+                        non_royalty_locs.add(v_sub)
+                else:
+                    non_royalty_locs.add(v)
+        non_royalty_locs_covered = set()
+
+        # Iterate over all piece moves and if a royalty position is covered,
+        # add it to the covered set
+        for piece in pieces:
+            for (x,y) in piece.get_moves_w_avg(temp_board, friendly_locs,
+                dict()):
+                if (x,y) in non_royalty_locs:
+                    non_royalty_locs_covered.add((x,y))
+
+        return (len(non_royalty_locs_covered) / 10)
 
     # HOLD OFF ON THE BELOW
     # 8. Some notion of flanks being covered or board control (or both?)
