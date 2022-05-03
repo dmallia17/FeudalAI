@@ -320,7 +320,6 @@ class LocalSearch():
             elif (x,y) in self.board.rough:
                 res += f[i]/2.0
 
-        print(res/maximum)
         return res/maximum
 
     # DAN
