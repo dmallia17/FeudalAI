@@ -1,5 +1,7 @@
 from Board import *
-import argparse, random
+from Agent import RandomAgent
+from GameExecution import *
+import argparse, json, random
 # "Agent Classes"
 # NEED:
 # - Human
@@ -18,64 +20,64 @@ import argparse, random
 
 
 agent_dict = {
-    "human" : Human
+    # "human"     : Human,
+    "random"    : RandomAgent
 }
 
-# NOTE: Would it be better to use configs to read in how to run the game?
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="Run the Feudal board game")
-    parser.add_argument("terrain_file", type=str, metavar="filename",
-        help=".txt file containing the board layout")
-    # UPDATE THESE AS MORE BECOME AVAILABLE
-    parser.add_argument("agent1_type", type=str, choices=["human"],
-        help="Selection for first player, options are: human")
-    parser.add_argument("agent2_type", type=str, choices=["human"],
-        help="Selection for second player, options are: human")
+    parser.add_argument("json_input", type=str, metavar="filename",
+        help=".json file specifying game run parameters")
     args = parser.parse_args()
+
+    with open(args.json_input, "r") as f:
+        game_params = json.load(f)
+
+    # Possibly seed
+    if game_params["seed"] is not None:
+        random.seed(game_params["seed"])
 
     # Create Board
     game_board = Board()
-    game_board.parse_terrain(args.terrain_file)
+    game_board.parse_terrain(game_params["terrain"])
 
     # Set up agents
-    brown_player = agent_dict[args.agent1_type]()
-    blue_player = agent_dict[args.agent2_type]()
+    # 1. Fetch params
+    blue_spec = game_params["blue"]
+    brown_spec = game_params["brown"]
+
+    # 2. insert colors (avoiding spec errors in json), as well as args for the
+    # LocalSearch method
+    blue_spec["args"]["color"] = "blue"
+    blue_spec["args"]["local_search_init_args"]["board"] = game_board.clone()
+    blue_spec["args"]["local_search_init_args"]["color"] = "blue"
+    brown_spec["args"]["color"] = "brown"
+    brown_spec["args"]["local_search_init_args"]["board"] = game_board.clone()
+    brown_spec["args"]["local_search_init_args"]["color"] = "brown"
+
+    # 3. Instantiate agents
+    blue_player = agent_dict[blue_spec["type"]](**blue_spec["args"])
+    brown_player = agent_dict[brown_spec["type"]](**brown_spec["args"])
+
 
     # Setup pieces
-    config = brown_player.get_piece_placement(game_board.clone())
-    game_board.place_pieces("brown", config)
-    config = blue_player.get_piece_placement(game_board.clone())
+    # NORMAL SETUP
+    # config = blue_player.get_piece_placement(game_board.clone())
+    # game_board.place_pieces("blue", config)
+    # config = brown_player.get_piece_placement(game_board.clone())
+    # game_board.place_pieces("brown", config)
+
+    # FAST SETUP
+    config = blue_player.local_search_method.get_random_start()
     game_board.place_pieces("blue", config)
+    config = brown_player.local_search_method.get_random_start()
+    game_board.place_pieces("brown", config)
 
     # Flip a coin for which player goes first
     blue_turn = bool(random.getrandbits(1))
 
-    # While not game over, run game
-    while not game_board.gameover():
-        # Show the state of the game - NOTE: comment out if not needed
-        game_board.display()
-
-        if blue_turn:
-            print("BLUE PLAYER:")
-            move = blue_player.get_choice(game_board.clone())
-            for m in move:
-                if not game_board.apply_move(m[0], m[1], "blue"):
-                    print("Invalid move")
-        else: # Brown turn
-            print("BROWN PLAYER")
-            move = brown_player.get_choice(game_board.clone())
-            for m in move:
-                if not game_board.apply_move(m[0], m[1], "brown"):
-                    print("Invalid move")
-
-        # For the future - save out game state if relevant
-
-        blue_turn = not blue_turn
-
-    if game_board.blue_lost():
-        print("BROWN WON")
-    else:
-        print("BLUE WON")
+    # Run the game
+    run_game_verbose(game_board, blue_player, brown_player, blue_turn)
 
 
