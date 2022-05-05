@@ -21,6 +21,7 @@ agent_dict = {
     "human" : Human
 }
 
+# NOTE: Would it be better to use configs to read in how to run the game?
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="Run the Feudal board game")
@@ -58,14 +59,15 @@ if __name__ == "__main__":
         if blue_turn:
             print("BLUE PLAYER:")
             move = blue_player.get_choice(game_board.clone())
-            if not game_board.apply_move(move):
-                print("Invalid move")
-
+            for m in move:
+                if not game_board.apply_move(m[0], m[1], "blue"):
+                    print("Invalid move")
         else: # Brown turn
             print("BROWN PLAYER")
             move = brown_player.get_choice(game_board.clone())
-            if not game_board.apply_move(move):
-                print("Invalid move")
+            for m in move:
+                if not game_board.apply_move(m[0], m[1], "brown"):
+                    print("Invalid move")
 
         # For the future - save out game state if relevant
 
