@@ -1,6 +1,7 @@
 # Implementation of the Feudal board game with some move restriction
 from itertools import combinations
 from copy import deepcopy
+import random
 
 class Board():
     def __init__(self):
@@ -356,6 +357,57 @@ class Board():
 
         return counts == self.target_counts
 
+    def get_pieces(self, color):
+        if "blue" == color:
+            return self.blue_pieces
+        else:
+            return self.brown_pieces
+
+    # @return get friendly, opponent locations
+    def get_locations(self, color):
+        if "blue" == color:
+            return self.blue_pieces_locations, self.brown_pieces_locations
+        else:
+            return self.brown_pieces_locations, self.blue_pieces_locations
+
+    # NOTE: DOES NOT REPLICATE A UNIFORM DISTRIBUTION OVER ALL POSSIBLE MOVES
+    def get_random_move(self, color):
+        # Reference the correct set of pieces
+        pieces = self.get_pieces(color)
+
+        # 1. Select how many pieces to move
+        # Take the min between 4 and the number of pieces remaining (we add
+        # 1 to each below because range is exclusive of the second number)
+        # TODO: Should we be weighting 1,2,3,or 4 pieces differently
+        num_pieces = random.randrange(1, min(5, len(pieces) + 1))
+
+        # 2. Randomly select num_pieces pieces
+        # chosen_pieces is a list, even if num_pieces is 1
+        chosen_pieces = random.sample(pieces.keys(), k=num_pieces)
+
+        # 3. Fetch a random move
+        # This breaks down into the cases of the number of pieces being moved,
+        # as we don't yet have a nice programmatic way to handle all varieties
+        # NOTE: We may want to invest the time to develop a Piece get_num_moves
+        # method
+
+        final_board = self.clone()
+        sorted_pieces = sorted(chosen_pieces)
+        final_moves = []
+        for i in range(num_pieces):
+            curr_piece = sorted_pieces[i]
+            temp = final_board.clone()
+            f_locs, o_locs = temp.get_locations(color)
+            piece_move = curr_piece.get_random_piece_move(temp, f_locs, o_locs)
+            final_moves.append((curr_piece.location, piece_move))
+            if not final_board.apply_move(curr_piece.location, piece_move,
+                color):
+                    raise RuntimeError(
+                        "get_random_move: move not successfully applied")
+
+        # Form of ([(first_piece_start, first_piece_new)...], board)
+        return (final_moves, final_board)
+
 
     # Must stitch together all possible moves of all pieces, in proper order...
     # Returning copies of itself where the game has been updated to reflect the
@@ -378,11 +430,11 @@ class Board():
             # For each piece, fetch an available move, apply it, and pass to
             # next piece
             for piece_move in piece.get_moves(self.clone(), friendly_locs, opponent_locs):
-                print(piece, piece.location, piece_move)
+                #print(piece, piece.location, piece_move)
                 new_board = self.clone()
                 if not new_board.apply_move(piece.location, piece_move, color):
-                    print("get_all_moves: move not successfully applied")
-                    raise RuntimeError
+                    raise RuntimeError(
+                        "get_all_moves: move not successfully applied")
                 yield ([(piece.location, piece_move)],new_board)
 
         # For all moves of two pieces (if possible)...
@@ -391,18 +443,18 @@ class Board():
         #         # The combination must be ordered correctly...
         #         sorted_selection = sorted(combination)
 
-        #         first_piece = combination[0]
-        #         second_piece = combination[1]
+        #         first_piece = sorted_selection[0]
+        #         second_piece = sorted_selection[1]
         #         for first_piece_move in first_piece.get_moves(self.clone(), friendly_locs, opponent_locs):
         #             new_board_1 = self.clone()
         #             if not new_board_1.apply_move(first_piece.location, first_piece_move, color):
         #                 print("get_all_moves: move not successfully applied")
-        #                 raise RuntimeError
-        #             for second_piece_move in second_piece.get_moves(new_board_1, friendly_locs, opponent_locs):
+        #                 raise RuntimeError("get_all_moves: 1 of 2 move not successfully applied")
+        #             for second_piece_move in second_piece.get_moves(new_board_1, friendly_locs, opponent_locs): # THIS IS WRONG
         #                 new_board_2 = new_board_1.clone()
         #                 if not new_board_2.apply_move(second_piece.location, second_piece_move, color):
         #                     print("get_all_moves: move not successfully applied")
-        #                     raise RuntimeError
+        #                     raise RuntimeError("get_all_moves: 2 of 2 move not successfully applied)
         #                 yield([(first_piece.location, first_piece_move),(second_piece.location, second_piece_move)], new_board_2)
 
     # Apply sequence of moves to the board (1 to 4 moves).
@@ -488,7 +540,7 @@ class Piece():
     # rank (King down to Archer), left-to-right (primary method of
     # tie-breaking among units of the same type) and unit number (secondary
     # method of tie-breaking among units of the same type) move ordering.
-    def __le__(self, other):
+    def __lt__(self, other):
         if self.rank < other.rank:
             return True
         elif self.rank == other.rank:
@@ -504,10 +556,126 @@ class Piece():
     def __str__(self):
         return self.rep
 
+    def get_random_piece_move(self, board, friendly_locs, opponent_locs):
+            chosen_move_num = random.randrange(1, self.get_num_moves(
+                board, friendly_locs, opponent_locs) + 1)
+
+            # Retrieve the move generator and iterate until the move
+            # corresponding to that move has been retrieved
+            # NOTE: I (Dan) tried making a seek_to_move function which
+            # basically just returns the chosen move, but it didn't appear to
+            # be any faster than just reusing the generator approach
+            generator = self.get_moves(board,
+                friendly_locs, opponent_locs)
+            for _ in range(chosen_move_num):
+                piece_move = next(generator)
+
+            return piece_move
+
+    # Basically a copy of get_moves, but instead of yielding moves, just count
+    # the number of options - should be faster than using yield logic
+    # @return   The actual number of moves (i.e. not 0 indexed)
+    def get_num_moves(self, board, friendly_locs, opponent_locs):
+        count = 0
+        on_green = (self.location == board.blue_castle[0]   or
+                    self.location == board.brown_castle[0])
+
+        for direction in self.directions:
+            past_green = False
+            for multiplier in range(1,self.multipliers+1):
+                # IF SERGEANT AND MULTIPLIER > 1, stop searching
+                # horizontally and vertically.
+                if self.rank == 5:
+                    if (direction in [(-1,0),(0,1),(1,0),(0,-1)] and
+                        multiplier > 1):
+                        break
+                # IF PIKEMAN AND MULTIPLIER > 1, stop searching diagonally.
+                if self.rank == 6:
+                    if (direction in [(-1,-1),(1,-1),(1,1),(-1,1)] and
+                        multiplier > 1):
+                        break
+                new_loc = ( self.location[0] + direction[0]*multiplier,
+                            self.location[1] + direction[1]*multiplier)
+                # Check if location is in bounds.
+                if (new_loc[0] < 0  or
+                    new_loc[0] > 23 or
+                    new_loc[1] < 0  or
+                    new_loc[1] > 23):
+                    break
+
+                # Check if squire is jumping over a castle.
+                if self.rank == 7:
+                    (i,j) = self.location
+                    if (j-new_loc[1]) in [-1,1]:
+                        if i-new_loc[0] > 0:
+                            (x,y) = (-1,0)
+                        else:
+                            (x,y) = (1,0)
+                    else:
+                        if j-new_loc[1] > 0:
+                            (x,y) = (0,-1)
+                        else:
+                            (x,y) = (0,1)
+                    if ((x+i,y+j) in [board.blue_castle[1],
+                                      board.brown_castle[1]]):
+                        break
+
+                # Check if a mounted unit is encountering rough terrain.
+                if self.rank in [2,3,4] and new_loc in board.rough:
+                    break
+
+
+                # Check if a mountain has been hit or a friendly piece
+                if (new_loc in board.mountains or
+                    new_loc in friendly_locs.keys()):
+                    break
+
+                # Entering castle green
+                if (new_loc in [board.blue_castle[0], board.brown_castle[0]]):
+                    count += 1 # yield new_loc
+                    # Archer can shoot past the green, so continue on if
+                    # archer:
+                    if self.rank == 8:
+                        past_green = True
+                        continue
+                    break
+
+                # Archers can not enter castle interior.
+                if (self.rank == 8  and
+                    on_green        and
+                    new_loc in [board.blue_castle[1], board.brown_castle[1]]):
+                    break
+
+                # Attempting to enter castle interior
+                if  (on_green and
+                    new_loc in [board.blue_castle[1], board.brown_castle[1]]):
+                    count += 1 # yield new_loc
+                    break
+
+                # Attempting to enter castle illegaly.
+                elif (not on_green and
+                      new_loc in [board.blue_castle[1],board.brown_castle[1]]):
+                    break
+
+                # Check if an opponent has been hit
+                if new_loc in opponent_locs.keys():
+                    count += 1 # yield new_loc
+                    break
+
+                # Archer is past green, traversing empty cell.
+                if past_green:
+                    continue
+
+                count += 1 # yield new_loc
+
+        return count
+
     def get_moves(self, board, friendly_locs, opponent_locs):
         return self.get_moves_sub(board, friendly_locs, opponent_locs)
 
     # TODO: Fix Mounted Piece to not go over mountains/rough terrain
+    # TODO: ANY CHANGE APPLIED HERE SHOULD BE EQUALLY APPLIED TO GET_NUM_MOVES
+    #       TO ENSURE CORRECT NUMBER OF MOVES RETURNED
     def get_moves_sub(self, board, friendly_locs, opponent_locs):
         on_green = (self.location == board.blue_castle[0]   or 
                     self.location == board.brown_castle[0])
