@@ -551,9 +551,9 @@ class SimulatedAnnealing(LocalSearch):
     
     # @param t is initial temperature.
     # @param c is a constant 0 < c < 1 which controls cooling.
-    def simulated_annealing(self, initial, t_init, alpha):
+    def get_piece_placement(self, t_init=10, alpha=.99):
         
-        current = initial
+        current = self.get_random_start()
         time = 1
         while True:
             # exponential temperature decrease.
