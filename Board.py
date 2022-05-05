@@ -205,7 +205,7 @@ class Board():
         enemy_in_castle = self.brown_castle[1] in self.blue_pieces_locations
         return royalty_eliminated or enemy_in_castle
 
-    def game_over(self, ):
+    def game_over(self):
         return self.brown_lost() or self.blue_lost()
 
     # Function for adding a single piece to the board
@@ -408,6 +408,19 @@ class Board():
         # Form of ([(first_piece_start, first_piece_new)...], board)
         return (final_moves, final_board)
 
+    # INCOMPLETE
+    def get_num_all_moves(self, color):
+        pieces = self.get_pieces(color)
+        friendly_locs, opponent_locs = self.get_locations(color)
+        count = 0
+
+        # For all single piece moves...
+        for piece in pieces:
+            count += piece.get_num_moves(self.clone(), friendly_locs, opponent_locs)
+
+        # NEED TO HANDLE MOVES OF 2,3,4 PIECES...
+
+        return count
 
     # Must stitch together all possible moves of all pieces, in proper order...
     # Returning copies of itself where the game has been updated to reflect the
