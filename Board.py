@@ -445,6 +445,22 @@ class Board():
                 count += self.count_moves(pieces_combo[1:], new_board)
             return count
 
+    # Count moves but pass the board by reference,
+    # undo every move after recursive calls.
+    def count_moves_ref(self, pieces_combo, board):
+        piece = pieces_combo[0]
+        friendly_locs, opponent_locs = board.get_locations(piece.color)
+        # Base case:
+        if len(pieces_combo) == 1:
+            return piece.get_num_moves(board, friendly_locs, opponent_locs)
+        else: # Recursion
+            count = 0
+            for move in piece.get_moves(board, friendly_locs, opponent_locs):
+                save = board.apply_move(piece.location,move, piece.color)
+                count += self.count_moves(pieces_combo[1:], board)
+                board.reverse_apply_move(save,piece.color)
+            return count
+
     # INCOMPLETE
     def get_num_all_moves(self, color):
         pieces = self.get_pieces(color)
@@ -454,6 +470,11 @@ class Board():
         for i in range(1,3):
             for pieces_combo in combinations(pieces.keys(), i):
                 count += self.count_moves(sorted(pieces_combo), self.clone())
+
+        # Pass board by reference approach.
+        #for i in range(1,4):
+        #    for pieces_combo in combinations(pieces.keys(), i):
+        #        count += self.count_moves_ref(sorted(pieces_combo), self)
 
         # Parallel approach
         # with multiprocessing.Pool(processes=8) as pool:
@@ -588,6 +609,96 @@ class Board():
 
         return True
 
+    # Apply move and return pre-move state.
+    def apply_move_retState(self, origin, new_location, color):
+        enemy_piece = None
+        if "blue" == color:
+            friendly_pieces = self.blue_pieces
+            opponent_pieces = self.brown_pieces
+            friendly_locs = self.blue_pieces_locations
+            opponent_locs = self.brown_pieces_locations
+            opponent_counts = self.brown_piece_counts
+        else: # Brown
+            friendly_pieces = self.brown_pieces
+            opponent_pieces = self.blue_pieces
+            friendly_locs = self.brown_pieces_locations
+            opponent_locs = self.blue_pieces_locations
+            opponent_counts = self.blue_piece_counts
+
+        current_piece = friendly_locs[origin]
+        # If new_location is where an enemy is delete the opponent piece and
+        # move current piece
+        # Special case: archer
+        if new_location in opponent_locs:
+            # Delete opponent
+            enemy_piece = opponent_locs[new_location]
+            piece = enemy_piece
+            opponent_counts[str(enemy_piece)] -= 1 # Decrement count
+            del opponent_locs[new_location] # Remove from locations -> pieces
+            del opponent_pieces[enemy_piece] # Remove from pieces -> locations
+
+            # Move current piece (if not an archer)
+            if "archer" != str(current_piece):
+                del friendly_locs[origin] # Remove from locations -> pieces
+                # Reinsert with correct location
+                friendly_locs[new_location] = current_piece
+                # Update pieces -> locations
+                friendly_pieces[current_piece] = new_location
+                # Update the piece itself
+                current_piece.location = new_location
+        # Otherwise just moving to a new spot
+        else:
+            del friendly_locs[origin] # Remove from locations -> pieces
+            # Reinsert with correct location
+            friendly_locs[new_location] = current_piece
+            # Update pieces -> locations
+            friendly_pieces[current_piece] = new_location
+            # Update the piece itself
+            current_piece.location = new_location
+        # Return move coordinates and attacked piece, if any.
+        return (origin,new_location,piece)
+
+    # Given predecessor save state, reverse apply the move for the 
+    # board.
+    def reverse_apply_move(self, save, color):
+        (origin, dest, piece) = save
+        if "blue" == color:
+            friendly_pieces = self.blue_pieces
+            opponent_pieces = self.brown_pieces
+            friendly_locs = self.blue_pieces_locations
+            opponent_locs = self.brown_pieces_locations
+            opponent_counts = self.brown_piece_counts
+        else: # Brown
+            friendly_pieces = self.brown_pieces
+            opponent_pieces = self.blue_pieces
+            friendly_locs = self.brown_pieces_locations
+            opponent_locs = self.blue_pieces_locations
+            opponent_counts = self.blue_piece_counts
+
+        # If we deleted an enemy.
+        if piece is not None:
+            # If archer is at origin, simply place the enemy piece back.
+            if origin in friendly_locs:
+                opponent_locs[dest] = piece
+                opponent_pieces[piece] = dest
+            # Otherwise move piece at dest to origin, then place enemy piece
+            # back.
+            else:
+                move_back = friendly_locs[dest]
+                friendly_locs[origin] = move_back
+                friendly_pieces[move_back] = origin
+                move_back.location = origin
+                opponent_locs[dest] = piece
+                opponent_pieces[piece] = dest
+            # Increase piece count
+            opponent_counts[str(piece)] += 1
+        # If we just moved a piece
+        else:
+            move_back = friendly_locs[dest]
+            friendly_locs[origin] = move_back
+            friendly_pieces[move_back] = origin
+            move_back.location = origin
+            del friendly_locs[dest]
 
 class Piece():
     def __init__(self, name, number, color, location, rank, directions):
