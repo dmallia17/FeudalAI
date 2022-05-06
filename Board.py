@@ -2,6 +2,7 @@
 from itertools import combinations
 from copy import deepcopy
 import random
+import threading
 
 class Board():
     def __init__(self):
@@ -29,10 +30,12 @@ class Board():
         new_board = Board()
         new_board.rough = self.rough.copy()
         new_board.mountains = self.mountains.copy()
-        new_board.blue_pieces = deepcopy(self.blue_pieces)
+        # new_board.blue_pieces = deepcopy(self.blue_pieces)
+        new_board.blue_pieces = {p.clone() : p.location for p in self.blue_pieces}
         new_board.blue_pieces_locations = {loc : piece for piece, loc in new_board.blue_pieces.items()}
         #new_board.blue_pieces_locations = deepcopy(self.blue_pieces_locations)
-        new_board.brown_pieces = deepcopy(self.brown_pieces)
+        # new_board.brown_pieces = deepcopy(self.brown_pieces)
+        new_board.brown_pieces = {p.clone() : p.location for p in self.brown_pieces}
         new_board.brown_pieces_locations = {loc : piece for piece, loc in new_board.brown_pieces.items()}
         # new_board.brown_pieces_locations = deepcopy(self.brown_pieces_locations)
         new_board.blue_castle = self.blue_castle[:]
@@ -408,19 +411,55 @@ class Board():
         # Form of ([(first_piece_start, first_piece_new)...], board)
         return (final_moves, final_board)
 
+
+    def count_moves(self, pieces_combo, board):
+        piece = pieces_combo[0]
+        friendly_locs, opponent_locs = board.get_locations(piece.color)
+        # Base case:
+        if len(pieces_combo) == 1:
+            return piece.get_num_moves(board, friendly_locs, opponent_locs)
+        else: # Recursion
+            count = 0
+            for move in piece.get_moves(board, friendly_locs, opponent_locs):
+                new_board = board.clone()
+                if not new_board.apply_move(piece.location,
+                        move, piece.color):
+                    raise RuntimeError("Could not apply in count_moves")
+                count += self.count_moves(pieces_combo[1:], new_board)
+            return count
+
     # INCOMPLETE
     def get_num_all_moves(self, color):
         pieces = self.get_pieces(color)
-        friendly_locs, opponent_locs = self.get_locations(color)
+        # friendly_locs, opponent_locs = self.get_locations(color)
         count = 0
 
-        # For all single piece moves...
-        for piece in pieces:
-            count += piece.get_num_moves(self.clone(), friendly_locs, opponent_locs)
+        for i in range(1,3):
+            for pieces_combo in combinations(pieces.keys(), i):
+                count += self.count_moves(sorted(pieces_combo), self.clone())
 
-        # NEED TO HANDLE MOVES OF 2,3,4 PIECES...
+        # Parallel approach
+
+
+        # For all single piece moves...
+        # for piece in pieces:
+        #     count += piece.get_num_moves(self.clone(), friendly_locs, opponent_locs)
+
+        # # # NEED TO HANDLE MOVES OF 2,3,4 PIECES...
+        # for combo in combinations(pieces.keys(), 2):
+        #     first_piece, second_piece = sorted(combo)
+        #     for move in first_piece.get_moves(self, friendly_locs, opponent_locs):
+        #         new_board = self.clone()
+        #         if not new_board.apply_move(first_piece.location,
+        #                 move, first_piece.color):
+        #             raise RuntimeError("Could not apply in count_moves")
+        #         new_f_locs, new_o_locs = new_board.get_locations(first_piece.color)
+        #         count += second_piece.get_num_moves(new_board, new_f_locs, new_o_locs)
 
         return count
+
+
+
 
     # Must stitch together all possible moves of all pieces, in proper order...
     # Returning copies of itself where the game has been updated to reflect the
@@ -888,77 +927,94 @@ class Piece():
 class King(Piece):
     def __init__(self, color, location):
         self.multipliers = 2
-        self.rank = 1
-        super().__init__("KG", "", color, location, self.rank, None)
+        super().__init__("KG", "", color, location, 1, None)
 
     def __str__(self):
         return "king"
 
+    def clone(self):
+        return King(self.color, self.location)
+
 class Prince(Piece):
     def __init__(self, color, location):
         self.multipliers = 54
-        self.rank = 2
-        super().__init__("PR", "", color, location, self.rank, None)
+        super().__init__("PR", "", color, location, 2, None)
 
     def __str__(self):
         return "prince"
 
+    def clone(self):
+        return Prince(self.color, self.location)
+
 class Duke(Piece):
     def __init__(self, color, location):
         self.multipliers = 54
-        self.rank = 3
-        super().__init__("DK", "", color, location, self.rank, None)
+        super().__init__("DK", "", color, location, 3, None)
 
     def __str__(self):
         return "duke"
 
+    def clone(self):
+        return Duke(self.color, self.location)
+
 class Knight(Piece):
     def __init__(self, number, color, location):
         self.multipliers = 54
-        self.rank = 4
-        super().__init__("K", number, color, location, self.rank, None)
+        super().__init__("K", number, color, location, 4, None)
 
     def __str__(self):
         return "knight"
+
+    def clone(self):
+        return Knight(self.number, self.color, self.location)
 
 class Sergeant(Piece):
     def __init__(self, number, color, location):
         self.number = number
         self.multipliers = 12
-        self.rank = 5
-        super().__init__("S", number, color, location, self.rank, None)
+        super().__init__("S", number, color, location, 5, None)
 
     def __str__(self):
         return "sergeant"
+
+    def clone(self):
+        return Sergeant(self.number, self.color, self.location)
 
 class Pikemen(Piece):
     def __init__(self, number, color, location):
         self.number = number
         self.multipliers = 12
-        self.rank = 6
-        super().__init__("P", number, color, location, self.rank, None)
+        super().__init__("P", number, color, location, 6, None)
 
     def __str__(self):
         return "pikemen"
 
+    def clone(self):
+        return Pikemen(self.number, self.color, self.location)
+
 class Squire(Piece):
     def __init__(self, color, location):
         self.multipliers = 1
-        self.rank = 7
         self.directions = [(-1,-2),(-2,-1), (-2,1), (-1,2),
                             (1,2), (2,1), (2,-1), (1,-2)]
-        super().__init__("SQ", "", color, location, self.rank, self.directions)
+        super().__init__("SQ", "", color, location, 7, self.directions)
+
     def __str__(self):
         return "squire"
+
+    def clone(self):
+        return Squire(self.color, self.location)
 
 class Archer(Piece):
     def __init__(self, color, location):
         self.multipliers = 3
-        self.rank = 8
-        super().__init__("AR", "", color, location, self.rank, None)
+        super().__init__("AR", "", color, location, 8, None)
 
     def __str__(self):
         return "archer"
+
+    def clone(self):
+        return Squire(self.color, self.location)
 
 
 
