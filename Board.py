@@ -2,7 +2,24 @@
 from itertools import combinations
 from copy import deepcopy
 import random
-import threading
+import multiprocessing
+
+def external_count_moves(pieces_combo, board):
+    piece = pieces_combo[0]
+    friendly_locs, opponent_locs = board.get_locations(piece.color)
+    # Base case:
+    if len(pieces_combo) == 1:
+        return piece.get_num_moves(board, friendly_locs, opponent_locs)
+    else: # Recursion
+        count = 0
+        for move in piece.get_moves(board, friendly_locs, opponent_locs):
+            new_board = board.clone()
+            if not new_board.apply_move(piece.location,
+                    move, piece.color):
+                raise RuntimeError("Could not apply in count_moves")
+            count += external_count_moves(pieces_combo[1:], new_board)
+        return count
+
 
 class Board():
     def __init__(self):
@@ -439,7 +456,9 @@ class Board():
                 count += self.count_moves(sorted(pieces_combo), self.clone())
 
         # Parallel approach
-
+        # with multiprocessing.Pool(processes=8) as pool:
+        #     for i in range(1,3):
+        #         count += sum(pool.starmap(external_count_moves, [(sorted(p_combo), self.clone()) for p_combo in combinations(pieces.keys(), i)]))
 
         # For all single piece moves...
         # for piece in pieces:
