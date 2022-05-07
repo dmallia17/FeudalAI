@@ -1,5 +1,6 @@
 {
     "seed" : null,
+    "num_moves_permitted" : 2,
     "terrain" : "terrain_3M_official_1.txt",
     "setup" : "random",
     "blue" : {

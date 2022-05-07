@@ -22,7 +22,12 @@ def external_count_moves(pieces_combo, board):
 
 
 class Board():
-    def __init__(self):
+    # @param num_moves_permitted    The number of pieces a player can move in
+    #                               a single turn. NOTE: This will be
+    #                               incremented by 1 and stored for use in
+    #                               range() calls.
+    def __init__(self, num_moves_permitted=2):
+        self.moves_max = num_moves_permitted + 1
         self.rough = set()
         self.mountains = set()
         self.blue_pieces = dict() # MAY BE REVISED # PIECES -> LOCATIONS
@@ -399,7 +404,7 @@ class Board():
         # Take the min between 4 and the number of pieces remaining (we add
         # 1 to each below because range is exclusive of the second number)
         # TODO: Should we be weighting 1,2,3,or 4 pieces differently
-        num_pieces = random.randrange(1, min(5, len(pieces) + 1))
+        num_pieces = random.randrange(1, min(self.moves_max, len(pieces) + 1))
 
         # 2. Randomly select num_pieces pieces
         # chosen_pieces is a list, even if num_pieces is 1
@@ -467,7 +472,7 @@ class Board():
         # friendly_locs, opponent_locs = self.get_locations(color)
         count = 0
 
-        for i in range(1,3):
+        for i in range(1, self.moves_max):
             for pieces_combo in combinations(pieces.keys(), i):
                 count += self.count_moves(sorted(pieces_combo), self.clone())
 
@@ -534,7 +539,7 @@ class Board():
             friendly_locs = self.brown_pieces_locations
             opponent_locs = self.blue_pieces_locations
 
-        for i in range(1,4):
+        for i in range(1, self.moves_max):
             for pieces_combo in combinations(pieces.keys(), i):
                 yield from self.get_moves(sorted(pieces_combo), self.clone())
 

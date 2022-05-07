@@ -41,7 +41,7 @@ if __name__ == "__main__":
         random.seed(game_params["seed"])
 
     # Create Board
-    game_board = Board()
+    game_board = Board(game_params["num_moves_permitted"])
     game_board.parse_terrain(game_params["terrain"])
 
     # Set up agents
