@@ -49,7 +49,7 @@ class Board():
 
     # Return a clone of the Board instance, only copying the piece dictionaries
     def clone(self):
-        new_board = Board()
+        new_board = Board(self.moves_max - 1)
         new_board.rough = self.rough.copy()
         new_board.mountains = self.mountains.copy()
         # new_board.blue_pieces = deepcopy(self.blue_pieces)
@@ -424,6 +424,9 @@ class Board():
             temp = final_board.clone()
             f_locs, o_locs = temp.get_locations(color)
             piece_move = curr_piece.get_random_piece_move(temp, f_locs, o_locs)
+            # Not a great solution but if the piece can't be moved, skip it
+            if piece_move is None:
+                continue
             final_moves.append((curr_piece.location, piece_move))
             if not final_board.apply_move(curr_piece.location, piece_move,
                 color):
@@ -765,8 +768,11 @@ class Piece():
         return self.rep
 
     def get_random_piece_move(self, board, friendly_locs, opponent_locs):
-            chosen_move_num = random.randrange(1, self.get_num_moves(
-                board, friendly_locs, opponent_locs) + 1)
+            num_available_moves = self.get_num_moves(
+                board, friendly_locs, opponent_locs)
+            if 0 == num_available_moves:
+                return None
+            chosen_move_num = random.randrange(1, num_available_moves + 1)
 
             # Retrieve the move generator and iterate until the move
             # corresponding to that move has been retrieved
