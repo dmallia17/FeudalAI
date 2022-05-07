@@ -1,6 +1,7 @@
 {
     "seed" : null,
     "terrain" : "terrain_3M_official_1.txt",
+    "setup" : "random",
     "blue" : {
         "type" : "random",
         "args" : {

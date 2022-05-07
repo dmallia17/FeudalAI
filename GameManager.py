@@ -1,5 +1,6 @@
 from Board import *
 from Agent import RandomAgent
+from MCTS import MCTS_UCT_Agent
 from GameExecution import *
 import argparse, json, random
 # "Agent Classes"
@@ -21,7 +22,8 @@ import argparse, json, random
 
 agent_dict = {
     # "human"     : Human,
-    "random"    : RandomAgent
+    "random"    : RandomAgent,
+    "mcts_uct" : MCTS_UCT_Agent
 }
 
 if __name__ == "__main__":
@@ -63,16 +65,20 @@ if __name__ == "__main__":
 
     # Setup pieces
     # NORMAL SETUP
-    # config = blue_player.get_piece_placement(game_board.clone())
-    # game_board.place_pieces("blue", config)
-    # config = brown_player.get_piece_placement(game_board.clone())
-    # game_board.place_pieces("brown", config)
-
+    setup_choice = game_params["setup"]
+    if "local" == setup_choice:
+        config = blue_player.get_piece_placement(game_board.clone())
+        game_board.place_pieces("blue", config)
+        config = brown_player.get_piece_placement(game_board.clone())
+        game_board.place_pieces("brown", config)
     # FAST SETUP
-    config = blue_player.local_search_method.get_random_start()
-    game_board.place_pieces("blue", config)
-    config = brown_player.local_search_method.get_random_start()
-    game_board.place_pieces("brown", config)
+    elif "random" == setup_choice:
+        config = blue_player.local_search_method.get_random_start()
+        game_board.place_pieces("blue", config)
+        config = brown_player.local_search_method.get_random_start()
+        game_board.place_pieces("brown", config)
+    else:
+        raise RuntimeError("Invalid setup type given")
 
     # Flip a coin for which player goes first
     blue_turn = bool(random.getrandbits(1))
