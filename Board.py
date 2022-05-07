@@ -406,32 +406,35 @@ class Board():
         # TODO: Should we be weighting 1,2,3,or 4 pieces differently
         num_pieces = random.randrange(1, min(self.moves_max, len(pieces) + 1))
 
-        # 2. Randomly select num_pieces pieces
-        # chosen_pieces is a list, even if num_pieces is 1
-        chosen_pieces = random.sample(pieces.keys(), k=num_pieces)
+        # For consistency with what are actually possible moves, we must
+        # repeatedly try creating a random move until one where all chosen
+        # pieces have moved is generated
+        incomplete = True
+        while incomplete:
+            # 2. Choose pieces
+            chosen_pieces = random.sample(pieces.keys(), k=num_pieces)
 
-        # 3. Fetch a random move
-        # This breaks down into the cases of the number of pieces being moved,
-        # as we don't yet have a nice programmatic way to handle all varieties
-        # NOTE: We may want to invest the time to develop a Piece get_num_moves
-        # method
-
-        final_board = self.clone()
-        sorted_pieces = sorted(chosen_pieces)
-        final_moves = []
-        for i in range(num_pieces):
-            curr_piece = sorted_pieces[i]
-            temp = final_board.clone()
-            f_locs, o_locs = temp.get_locations(color)
-            piece_move = curr_piece.get_random_piece_move(temp, f_locs, o_locs)
-            # Not a great solution but if the piece can't be moved, skip it
-            if piece_move is None:
-                continue
-            final_moves.append((curr_piece.location, piece_move))
-            if not final_board.apply_move(curr_piece.location, piece_move,
-                color):
-                    raise RuntimeError(
-                        "get_random_move: move not successfully applied")
+            # 3. Try returning a play where all of these pieces have moved
+            final_board = self.clone()
+            sorted_pieces = sorted(chosen_pieces)
+            final_moves = []
+            for i in range(num_pieces):
+                curr_piece = sorted_pieces[i]
+                temp = final_board.clone()
+                f_locs, o_locs = temp.get_locations(color)
+                piece_move = curr_piece.get_random_piece_move(temp, f_locs,
+                    o_locs)
+                # If a piece is not able to move, abandon this generation
+                if piece_move is None:
+                    break
+                final_moves.append((curr_piece.location, piece_move))
+                if not final_board.apply_move(curr_piece.location, piece_move,
+                    color):
+                        raise RuntimeError(
+                            "get_random_move: move not successfully applied")
+                # If all chosen pieces have been successfully moved...
+                if i == (num_pieces-1):
+                    incomplete = False
 
         # Form of ([(first_piece_start, first_piece_new)...], board)
         return (final_moves, final_board)
