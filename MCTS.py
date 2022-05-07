@@ -83,11 +83,12 @@ class MCTS_UCT_Agent(Agent):
     #                               to the playout agent
     def __init__(self, color, time_limit, local_search_method,
         local_search_init_args, local_search_run_args, c, playout_class,
-        playout_class_args=dict()):
+        playout_class_args=dict(), verbose=False):
         super().__init__(color, time_limit, local_search_method,
             local_search_init_args, local_search_run_args)
         self.c = c
         self.safe_limit = .9 * self.time_limit
+        self.verbose = verbose
 
         # Setup playout agents
         playout_class_args["color"] = "blue"
@@ -113,7 +114,7 @@ class MCTS_UCT_Agent(Agent):
         # While there is remaining time, run the following four steps:
         # 1. select, 2. expand, 3. simulate, and 4. backpropagate
         # While checking for running out of time at any point in the loop
-        while (process_time() - start_time > self.safe_limit):
+        while (process_time() - start_time < self.safe_limit):
             selected = self.select(tree, start_time)
             if selected is None:
                 break
@@ -133,6 +134,10 @@ class MCTS_UCT_Agent(Agent):
         self.num_simulations.append(number_of_sims)
         self.max_depths.append(max_depth)
 
+        if self.verbose:
+            print("Number of simulations:", number_of_sims)
+            print("Max search depth:", max_depth)
+
         # Return best move
         best_child = self.best_child(tree, 0)
         return best_child.action
@@ -146,15 +151,15 @@ class MCTS_UCT_Agent(Agent):
         else:
             first_child = node.children[0]
             max_node = first_child
-            max_value = (first_child.utility / first_child.num_playouts) + \
+            max_value = (first_child.utility / max(1,first_child.num_playouts)) + \
                 (c * math.sqrt(
                     (2 * math.log(node.num_playouts)) / \
-                    (first_child.num_playouts)))
+                    (max(1,first_child.num_playouts))))
             for child in node.children[1:]:
-                value = (child.utility / child.num_playouts) + \
+                value = (child.utility / max(1, child.num_playouts)) + \
                     (c * math.sqrt(
                         (2 * math.log(node.num_playouts)) / \
-                        (child.num_playouts)))
+                        (max(1,child.num_playouts))))
 
                 if value > max_value:
                     max_value = value
@@ -189,7 +194,7 @@ class MCTS_UCT_Agent(Agent):
         # Choose a random action and get a new state
         random_action, new_board = node.state.get_random_move(node.color)
         # If action has already been tried, get a new one
-        while (random_action in node.actions_tried):
+        while (tuple(random_action) in node.actions_tried):
             random_action, new_board = node.state.get_random_move(node.color)
 
         # Prepare node for that state
@@ -202,7 +207,7 @@ class MCTS_UCT_Agent(Agent):
         # Handle the bookkeeping for the parent
         node.children.append(new_node)
         node.num_children += 1
-        node.actions_tried.add(random_action)
+        node.actions_tried.add(tuple(random_action))
 
         return new_node
 
@@ -232,7 +237,7 @@ class MCTS_UCT_Agent(Agent):
             curr_node.num_playouts += 1
             curr_node.utility += curr_result
             curr_result = 1 - curr_result # Flip the result
-            curr_node = child.parent # Step up to parent
+            curr_node = curr_node.parent # Step up to parent
 
         return True
 
