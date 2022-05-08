@@ -511,22 +511,32 @@ class Board():
 
 
     # Recursive function to generate all moves for a given piece combination and board.
-    def get_moves(self, pieces_combo, board):
+    def get_moves(self, pieces_combo, board, moves_list):
         piece = pieces_combo[0]
         friendly_locs, opponent_locs = board.get_locations(piece.color)
         # Base case:
         if len(pieces_combo) == 1:
-            yield from piece.get_moves(board.clone(), friendly_locs, opponent_locs)
+            for move in piece.get_moves(board.clone(), friendly_locs, opponent_locs):
+                new_board = board.clone()
+                if not new_board.apply_move(piece.location,move, piece.color):
+                    raise RuntimeError("Could not apply in count_moves")
+                
+                moves_list.append((piece.location, move))
+                yield (moves_list, new_board)
+                moves_list.pop()
         else: # Recursion
             count = 0
             for move in piece.get_moves(board, friendly_locs, opponent_locs):
                 new_board = board.clone()
                 if not new_board.apply_move(piece.location,move, piece.color):
                     raise RuntimeError("Could not apply in count_moves")
-                yield from self.get_moves(pieces_combo[1:], new_board)
+                
+                moves_list.append((piece.location, move))
+                yield from self.get_moves(pieces_combo[1:], 
+                                          new_board, 
+                                          moves_list)
+                moves_list.pop()
             return count
-
-
 
 
     # Must stitch together all possible moves of all pieces, in proper order...
@@ -547,7 +557,7 @@ class Board():
 
         for i in range(1, self.moves_max):
             for pieces_combo in combinations(pieces.keys(), i):
-                yield from self.get_moves(sorted(pieces_combo), self.clone())
+                yield from self.get_moves(sorted(pieces_combo), self.clone(), [])
 
         # For all single piece moves...
         #for piece in pieces:

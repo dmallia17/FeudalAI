@@ -13,18 +13,18 @@ if __name__ == "__main__":
     b3.place_pieces("brown", brown_random)
     b3.display()
     
-
     start = perf_counter()
-    move_counter = 0
-    for move in b3.get_all_moves("brown"):
-        move_counter += 1
-    print("moves generated (get_all_moves): ", move_counter)
+    count = 0
+    for m in b3.get_all_moves("brown"):
+        count += 1
     end = perf_counter()
-    print("Time elapsed: ", (end-start), "\n")
+    print("Time elapsed (get_all_moves): ", (end-start))
 
 
+    '''
     start = perf_counter()
-    num_moves = b3.get_num_all_moves("brown")
-    print("moves generated (get_num_moves): ", move_counter)
+    test = b3.get_num_all_moves("brown")
     end = perf_counter()
-    print("Time elapsed: ", (end-start))
+    print("Time elapsed (get_num_all_moves): ", (end-start))
+    print(test)
+    '''
