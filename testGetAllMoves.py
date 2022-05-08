@@ -15,16 +15,24 @@ if __name__ == "__main__":
     
     start = perf_counter()
     count = 0
+    for m in b3.get_all_moves_ref("brown"):
+        count += 1
+    end = perf_counter()
+    print("Time elapsed (get_all_moves_ref): ", (end-start))
+    print("num moves generated: ", count)
+    print()
+
+    start = perf_counter()
+    count = 0
     for m in b3.get_all_moves("brown"):
         count += 1
     end = perf_counter()
     print("Time elapsed (get_all_moves): ", (end-start))
+    print("num moves generated: ", count)
+    print()
 
-
-    '''
     start = perf_counter()
     test = b3.get_num_all_moves("brown")
     end = perf_counter()
     print("Time elapsed (get_num_all_moves): ", (end-start))
     print(test)
-    '''
