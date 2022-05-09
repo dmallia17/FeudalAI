@@ -13,6 +13,7 @@ class Minimax_Agent(Agent):
         self.max = float('-inf')
         self.choice = None
         self.neg_color = "brown" if color == "blue" else "blue"
+        self.color_weight = {self.color: 1, self.neg_color: -1}
 
     # Check time and update
     def update_time(self):                                              
@@ -27,7 +28,7 @@ class Minimax_Agent(Agent):
         self.prev_time = time.process_time()
         depth_limit = 1
         # Map from color to negation value. 
-        color_weight = {self.color: 1, self.neg_color: -1}
+        
 
         # Call stack tuple arg_name -> position dictionary.
         id = {
@@ -61,6 +62,7 @@ class Minimax_Agent(Agent):
             # a parent node is pushed onto the stack, it will remain at the 
             # same index while its children are being explored. 
             call_stack = [[0, [], self.color, -1.0, 0, False, []]]
+            
             while len(call_stack) > 0:
                 # Get reference to location of current node. 
                 cur_ptr = len(call_stack)-1
@@ -74,7 +76,7 @@ class Minimax_Agent(Agent):
                     saves]        = call_stack.pop()
                 # Negated color.
                 neg_color = "brown" if color == "blue" else "blue"
-                
+
                 # If at root node.
                 if cur_depth == 0:
                     # Check visited as flag to determine if moves need to be 
@@ -110,18 +112,18 @@ class Minimax_Agent(Agent):
                         # Check if at depth-limit or terminal node.
                         if board.game_over() or cur_depth == depth_limit:
                             if color == "blue" and board.blue_lost():
-                                max_val = color_weight[color] * -1.0
+                                max_val = self.color_weight[color] * 10.0
                             elif color == "blue" and board.brown_lost():
-                                max_val = color_weight[color] * 1.0
+                                max_val = self.color_weight[color] * 10.0
                             elif color == "brown" and board.brown_lost():
-                                max_val = color_weight[color] * -1.0
+                                max_val = self.color_weight[color] * 10.0
                             elif color == "brown" and board.blue_lost():
-                                max_val = color_weight[color] * 1.0
+                                max_val = self.color_weight[color] * 10.0
                             else:
-                                max_val = color_weight[color] * self.evaluate_node(board)
+                                max_val = self.color_weight[color] * self.evaluate_node(board)
                             # Push terminal node back onto stack (with visited flag set).
                             call_stack.append([ cur_depth,
-                                                move,
+                                                move[:],
                                                 color,
                                                 max_val, 
                                                 parent_ptr,
@@ -132,7 +134,7 @@ class Minimax_Agent(Agent):
                         else:
                             # Push node back onto stack with visited flag set. 
                             call_stack.append([ cur_depth,
-                                                move,
+                                                move[:],
                                                 color,
                                                 max_val, 
                                                 parent_ptr,
@@ -142,7 +144,7 @@ class Minimax_Agent(Agent):
                             # Generate children.
                             for next_move in board.get_all_moves_ref(color):
                                 call_stack.append([ cur_depth+1, 
-                                                    next_move, 
+                                                    next_move[:], 
                                                     neg_color, 
                                                     float('-inf'), 
                                                     cur_ptr,
@@ -153,12 +155,36 @@ class Minimax_Agent(Agent):
                         for i in range(len(saves)-1, -1, -1):
                             board.reverse_apply_move(saves[i], neg_color)
                         if -max_val > call_stack[parent_ptr][id["max_val"]]:
-                            call_stack[parent_ptr][id["max_val"]] = max_val
+                            call_stack[parent_ptr][id["max_val"]] = -max_val
                             call_stack[parent_ptr][id["move"]] = move
 
             # Increment depth limit (iterative deepening).
             return self.choice
 
+    def royalty_count(self, board, counts):
+        return (1 - (counts["king"] + counts["prince"] + counts["duke"])/3.0)
+    
+    def pieces_remaining(self, board,counts):
+        res = 0.0
+        res += counts["knight"]
+        res += counts["sergeant"]
+        res += counts["pikemen"]
+        res += counts["squire"]
+        res += counts["archer"]
+
+        return 1 - (res / 10.0)
+
     def evaluate_node(self, board):
-        pass
+        if self.color == "brown":
+            counts = board.blue_piece_counts
+        else:
+            counts = board.brown_piece_counts
+        
+        value = 0.0
+        value += self.royalty_count(board, counts)
+
+        value += self.pieces_remaining(board,counts)
+
+        return value
+
     

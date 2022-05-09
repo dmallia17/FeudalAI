@@ -396,6 +396,7 @@ class Board():
         else:
             return self.brown_pieces_locations, self.blue_pieces_locations
 
+
     # NOTE: DOES NOT REPLICATE A UNIFORM DISTRIBUTION OVER ALL POSSIBLE MOVES
     def get_random_move(self, color):
         # Reference the correct set of pieces
