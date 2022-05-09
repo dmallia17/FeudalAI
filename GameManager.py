@@ -1,6 +1,7 @@
 from Board import *
 from Agent import RandomAgent
 from MCTS import MCTS_UCT_Agent
+from Minimax import Minimax_Agent
 from GameExecution import *
 import argparse, json, random
 # "Agent Classes"
@@ -23,7 +24,8 @@ import argparse, json, random
 agent_dict = {
     # "human"     : Human,
     "random"    : RandomAgent,
-    "mcts_uct" : MCTS_UCT_Agent
+    "mcts_uct"  : MCTS_UCT_Agent,
+    "minimax"   : Minimax_Agent
 }
 
 if __name__ == "__main__":

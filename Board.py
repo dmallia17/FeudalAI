@@ -544,14 +544,12 @@ class Board():
         friendly_locs, opponent_locs = board.get_locations(piece.color)
         # Base case:
         if len(pieces_combo) == 1:
-            for move in piece.get_moves(board, friendly_locs, opponent_locs):
+            for move in piece.get_moves_list(board, friendly_locs, opponent_locs):
                 moves_list.append((piece.location, move))
-                save = board.apply_move_retState(piece.location, move, piece.color)
-                yield (moves_list, board)
-                board.reverse_apply_move(save, piece.color)
+                yield moves_list
                 moves_list.pop()
         else: # Recursion
-            for move in piece.get_moves(board, friendly_locs, opponent_locs):
+            for move in piece.get_moves_list(board, friendly_locs, opponent_locs):
                 moves_list.append((piece.location, move))
                 save = board.apply_move_retState(piece.location, move, piece.color)
                 yield from board.get_moves_ref(pieces_combo[1:], board, moves_list)
@@ -1141,6 +1139,106 @@ class Piece():
                     continue
 
                 yield new_loc
+
+    # TODO: Fix Mounted Piece to not go over mountains/rough terrain
+    # TODO: ANY CHANGE APPLIED HERE SHOULD BE EQUALLY APPLIED TO GET_NUM_MOVES
+    #       TO ENSURE CORRECT NUMBER OF MOVES RETURNED
+    #   get moves but return a list instead of generating.
+    def get_moves_list(self, board, friendly_locs, opponent_locs):
+        
+        res = []
+        
+        on_green = (self.location == board.blue_castle[0]   or 
+                    self.location == board.brown_castle[0])
+        
+        for direction in self.directions:
+            past_green = False
+            for multiplier in range(1,self.multipliers+1):
+                # IF SERGEANT AND MULTIPLIER > 1, stop searching 
+                # horizontally and vertically.
+                if self.rank == 5:
+                    if (direction in [(-1,0),(0,1),(1,0),(0,-1)] and 
+                        multiplier > 1):
+                        break
+                # IF PIKEMAN AND MULTIPLIER > 1, stop searching diagonally.
+                if self.rank == 6:
+                    if (direction in [(-1,-1),(1,-1),(1,1),(-1,1)] and 
+                        multiplier > 1):
+                        break
+                new_loc = ( self.location[0] + direction[0]*multiplier,
+                            self.location[1] + direction[1]*multiplier)
+                # Check if location is in bounds.
+                if (new_loc[0] < 0  or
+                    new_loc[0] > 23 or 
+                    new_loc[1] < 0  or
+                    new_loc[1] > 23):
+                    break
+
+                # Check if squire is jumping over a castle.
+                if self.rank == 7:
+                    (i,j) = self.location
+                    if (j-new_loc[1]) in [-1,1]: 
+                        if i-new_loc[0] > 0:
+                            (x,y) = (-1,0)
+                        else:
+                            (x,y) = (1,0)
+                    else:
+                        if j-new_loc[1] > 0:
+                            (x,y) = (0,-1)
+                        else:
+                            (x,y) = (0,1)
+                    if ((x+i,y+j) in [board.blue_castle[1],
+                                      board.brown_castle[1]]):
+                        break
+
+                # Check if a mounted unit is encountering rough terrain.
+                if self.rank in [2,3,4] and new_loc in board.rough:
+                    break
+
+
+                # Check if a mountain has been hit or a friendly piece
+                if (new_loc in board.mountains or 
+                    new_loc in friendly_locs.keys()):
+                    break
+                
+                # Entering castle green
+                if (new_loc in [board.blue_castle[0], board.brown_castle[0]]):
+                    res.append(new_loc)
+                    # Archer can shoot past the green, so continue on if 
+                    # archer:
+                    if self.rank == 8:
+                        past_green = True
+                        continue
+                    break
+
+                # Archers can not enter castle interior.
+                if (self.rank == 8  and
+                    on_green        and
+                    new_loc in [board.blue_castle[1], board.brown_castle[1]]):
+                    break
+
+                # Attempting to enter castle interior
+                if  (on_green and 
+                    new_loc in [board.blue_castle[1], board.brown_castle[1]]):
+                    res.append(new_loc)
+                    break
+
+                # Attempting to enter castle illegaly.
+                elif (not on_green and 
+                      new_loc in [board.blue_castle[1],board.brown_castle[1]]):
+                    break
+
+                # Check if an opponent has been hit
+                if new_loc in opponent_locs.keys():
+                    res.append(new_loc)
+                    break
+                
+                # Archer is past green, traversing empty cell.
+                if past_green:
+                    continue
+
+                res.append(new_loc)
+        return res
 
 class King(Piece):
     def __init__(self, color, location):
