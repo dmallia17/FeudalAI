@@ -5,6 +5,7 @@ from time import process_time, time
 # Basic execution of the game in verbose fashion - showing whose turn it is and
 # displaying the board
 def run_game_verbose(game_board, blue_player, brown_player, blue_turn):
+    num_turns = 0
     while not game_board.game_over():
         game_board.display()
 
@@ -22,6 +23,7 @@ def run_game_verbose(game_board, blue_player, brown_player, blue_turn):
                     print("Invalid move")
 
         blue_turn = not blue_turn
+        num_turns += 1
 
     if game_board.blue_lost():
         print("BROWN WON")
@@ -29,6 +31,7 @@ def run_game_verbose(game_board, blue_player, brown_player, blue_turn):
     else:
         print("BLUE WON")
         game_board.display()
+    print("NUMBER OF TURNS:", num_turns)
 
 
 
