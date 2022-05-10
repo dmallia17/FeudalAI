@@ -1,5 +1,5 @@
 from Board import *
-from Agent import RandomAgent
+from Agent import RandomAgent, PureGreedyRandomAgent
 from MCTS import MCTS_UCT_Agent, MCTS_UCT_LP_Agent
 from Minimax import Minimax_Agent
 from GameExecution import *
@@ -25,8 +25,9 @@ agent_dict = {
     # "human"     : Human,
     "random"    : RandomAgent,
     "mcts_uct"  : MCTS_UCT_Agent,
-    "minimax"   : Minimax_Agent
-    "mcts_uct_lp" : MCTS_UCT_LP_Agent
+    "minimax"   : Minimax_Agent,
+    "mcts_uct_lp" : MCTS_UCT_LP_Agent,
+    "puregreedyrandom" : PureGreedyRandomAgent
 }
 
 if __name__ == "__main__":
