@@ -12,8 +12,8 @@
 #           IEEE Transactions on Computational Intelligence and AI in Games, 4
 #           (2012), 1-43.
 
-import math
-from time import process_time
+import math, multiprocessing, os, random
+from time import process_time, time
 from Agent import *
 from GameExecution import *
 
@@ -241,6 +241,108 @@ class MCTS_UCT_Agent(Agent):
 
         return True
 
+# Needed to ensure separate seeding of processes (see below link) as otherwise
+# all simulations would be the same
+# https://stackoverflow.com/questions/9209078/using-python-multiprocessing-with-different-random-seed-for-each-process
+def parallel_seed():
+    pid = os.getpid()
+    seed = pid * int(time())
+    print("Process", pid, "seed:", seed)
+    random.seed()
+    print(random.randrange(2048))
 
 
+# Implements a simple leaf parallelization where several simulations are run
+# in the simulate phase instead of just one
+class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
+    def __init__(self, color, time_limit, local_search_method,
+        local_search_init_args, local_search_run_args, c, playout_class,
+        playout_class_args=dict(), verbose=False, num_processes=8):
+        super().__init__(color, time_limit, local_search_method,
+            local_search_init_args, local_search_run_args, c, playout_class,
+            playout_class_args, verbose)
+        self.num_processes = num_processes
+        self.sim_pool = multiprocessing.Pool(processes=num_processes,
+            initializer=parallel_seed)
+
+    def cleanup(self):
+        self.sim_pool.close()
+        self.sim_pool.join()
+
+    # The function for running MCTS
+    def get_choice(self, board):
+        # Start a clock to ensure an answer is given within the time limit
+        start_time = process_time()
+        start_time_independent = time()
+        # Start tracking number of simulations and max depth
+        number_of_sims = 0
+        max_depth = 0
+
+        # Initialize the tree
+        tree = Node(board.clone(), None, None, 0, self.color, 0, 0)
+
+        # While there is remaining time, run the following four steps:
+        # 1. select, 2. expand, 3. simulate, and 4. backpropagate
+        # While checking for running out of time at any point in the loop
+        while (process_time() - start_time < self.safe_limit):
+            selected = self.select(tree, start_time)
+            if selected is None:
+                break
+            child = self.expand(selected, start_time)
+            if child is None:
+                break
+            if child.depth > max_depth:
+                max_depth = child.depth
+            result = self.simulate(child, start_time_independent)
+            if result is None:
+                break
+            number_of_sims += self.num_processes
+            if not self.back_propagate(result, child, start_time):
+                break
+
+        # Update stats from this decision
+        self.num_simulations.append(number_of_sims)
+        self.max_depths.append(max_depth)
+
+        if self.verbose:
+            print("Number of simulations:", number_of_sims)
+            print("Max search depth:", max_depth)
+
+        # Return best move
+        best_child = self.best_child(tree, 0)
+        return best_child.action
+
+    # Simulate run(s) of the game from the newly added child node
+    def simulate(self, child, start_time):
+        if (time() - start_time > self.safe_limit):
+            return None
+
+        blue_turn = True if "blue" == child.color else False
+        winners = self.sim_pool.starmap(run_game_simulation,
+            [(child.state.clone(), self.playout_blue, self.playout_brown,
+            blue_turn, start_time, self.safe_limit) \
+                for _ in range(self.num_processes)])
+        # CAN ADJUST THIS TO ALLOW MORE SIMULATIONS THAN PROCESSES - NEED TO
+        # CHECK EVERYWHERE self.num_processes IS BEING USED HOWEVER
+
+        print(winners)
+        if any([(w is None) for w in winners]):
+            return None
+
+        return sum([1 if w == child.color else 0 for w in winners])
+
+    # As this function operates on the tree in place, it returns False if it
+    # had to abort because of no more time, else True for success
+    def back_propagate(self, result, child, start_time):
+        curr_node = child
+        curr_result = result
+        while curr_node is not None:
+            if (process_time() - start_time > self.safe_limit):
+                return False
+            curr_node.num_playouts += self.num_processes
+            curr_node.utility += curr_result
+            curr_result = self.num_processes - curr_result # Flip the result
+            curr_node = curr_node.parent # Step up to parent
+
+        return True
 

@@ -1,6 +1,6 @@
 # Functions for running the game
 
-from time import process_time
+from time import process_time, time
 
 # Basic execution of the game in verbose fashion - showing whose turn it is and
 # displaying the board
@@ -36,7 +36,7 @@ def run_game_verbose(game_board, blue_player, brown_player, blue_turn):
 def run_game_simulation(game_board, blue_player, brown_player, blue_turn,
     start_time, limit):
     while not game_board.game_over():
-        if (process_time() - start_time > limit):
+        if (time() - start_time > limit):
             return None
 
         if blue_turn:

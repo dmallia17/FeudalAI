@@ -1,6 +1,8 @@
 from Board import *
 from LocalSearch import *
 from time import perf_counter
+import pickle
+import cProfile
 
 if __name__ == "__main__":
     # b = Board()
@@ -51,3 +53,19 @@ if __name__ == "__main__":
     print(test)
     # print(searcher.royalty_avengeable(new_config))
     # print(searcher.non_royalty_avengeable(new_config))
+
+    # with open("FILESIZECHECK", "wb") as f:
+    #     pickle.dump(b3, f)
+
+    count_via_gen = 0
+    start = perf_counter()
+    for _ in  b3.get_all_moves("blue"):
+        count_via_gen += 1
+    end = perf_counter()
+    print("Time elapsed: ", (end-start))
+    print("Count via generator: ", count_via_gen)
+    start = perf_counter()
+    count_via_method = b3.get_num_all_moves("blue")
+    end = perf_counter()
+    print("Time elapsed: ", (end-start))
+    print("Count via method: ", count_via_method)

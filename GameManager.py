@@ -1,6 +1,6 @@
 from Board import *
 from Agent import RandomAgent
-from MCTS import MCTS_UCT_Agent
+from MCTS import MCTS_UCT_Agent, MCTS_UCT_LP_Agent
 from Minimax import Minimax_Agent
 from GameExecution import *
 import argparse, json, random
@@ -26,6 +26,7 @@ agent_dict = {
     "random"    : RandomAgent,
     "mcts_uct"  : MCTS_UCT_Agent,
     "minimax"   : Minimax_Agent
+    "mcts_uct_lp" : MCTS_UCT_LP_Agent
 }
 
 if __name__ == "__main__":
@@ -87,5 +88,14 @@ if __name__ == "__main__":
 
     # Run the game
     run_game_verbose(game_board, blue_player, brown_player, blue_turn)
+
+    # Handle any cleanup for multiprocessing
+    if type(blue_player) == MCTS_UCT_LP_Agent:
+        blue_player.cleanup()
+        print("blue cleaned")
+
+    if type(brown_player) == MCTS_UCT_LP_Agent:
+        brown_player.cleanup()
+        print("brown cleaned")
 
 
