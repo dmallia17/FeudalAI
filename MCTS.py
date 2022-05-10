@@ -103,7 +103,7 @@ class MCTS_UCT_Agent(Agent):
     # The function for running MCTS
     def get_choice(self, board):
         # Start a clock to ensure an answer is given within the time limit
-        start_time = process_time()
+        start_time = time()
         # Start tracking number of simulations and max depth
         number_of_sims = 0
         max_depth = 0
@@ -114,7 +114,7 @@ class MCTS_UCT_Agent(Agent):
         # While there is remaining time, run the following four steps:
         # 1. select, 2. expand, 3. simulate, and 4. backpropagate
         # While checking for running out of time at any point in the loop
-        while (process_time() - start_time < self.safe_limit):
+        while (time() - start_time < self.safe_limit):
             selected = self.select(tree, start_time)
             if selected is None:
                 break
@@ -171,7 +171,7 @@ class MCTS_UCT_Agent(Agent):
     def select(self, node, start_time):
         curr_node = node
         while not curr_node.is_terminal():
-            if (process_time() - start_time > self.safe_limit):
+            if (time() - start_time > self.safe_limit):
                 return None
 
             if not curr_node.is_fully_expanded():
@@ -188,7 +188,7 @@ class MCTS_UCT_Agent(Agent):
     # would only be for the moves that involve moving as many pieces as
     # allowed
     def expand(self, node, start_time):
-        if (process_time() - start_time > self.safe_limit):
+        if (time() - start_time > self.safe_limit):
             return None
 
         # Choose a random action and get a new state
@@ -213,7 +213,7 @@ class MCTS_UCT_Agent(Agent):
 
     # Simulate a run of the game from the newly added child node
     def simulate(self, child, start_time):
-        if (process_time() - start_time > self.safe_limit):
+        if (time() - start_time > self.safe_limit):
             return None
 
         blue_turn = True if "blue" == child.color else False
@@ -232,7 +232,7 @@ class MCTS_UCT_Agent(Agent):
         curr_node = child
         curr_result = result
         while curr_node is not None:
-            if (process_time() - start_time > self.safe_limit):
+            if (time() - start_time > self.safe_limit):
                 return False
             curr_node.num_playouts += 1
             curr_node.utility += curr_result
@@ -272,8 +272,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
     # The function for running MCTS
     def get_choice(self, board):
         # Start a clock to ensure an answer is given within the time limit
-        start_time = process_time()
-        start_time_independent = time()
+        start_time = time()
         # Start tracking number of simulations and max depth
         number_of_sims = 0
         max_depth = 0
@@ -284,7 +283,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         # While there is remaining time, run the following four steps:
         # 1. select, 2. expand, 3. simulate, and 4. backpropagate
         # While checking for running out of time at any point in the loop
-        while (process_time() - start_time < self.safe_limit):
+        while (time() - start_time < self.safe_limit):
             selected = self.select(tree, start_time)
             if selected is None:
                 break
@@ -293,7 +292,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
                 break
             if child.depth > max_depth:
                 max_depth = child.depth
-            result = self.simulate(child, start_time_independent)
+            result = self.simulate(child, start_time)
             if result is None:
                 break
             number_of_sims += self.num_processes
@@ -337,7 +336,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         curr_node = child
         curr_result = result
         while curr_node is not None:
-            if (process_time() - start_time > self.safe_limit):
+            if (time() - start_time > self.safe_limit):
                 return False
             curr_node.num_playouts += self.num_processes
             curr_node.utility += curr_result
