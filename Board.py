@@ -564,8 +564,6 @@ class Board():
 
     # get_all_moves_ref - generate all moves but pass around the same 
     # board copy. 
-    # Caller (This function) assumed callee (function that receives the board)
-    # will undo any modifications to the board.
     def get_all_moves_ref(self, color):
         if "blue" == color:
             pieces = self.blue_pieces
@@ -790,6 +788,20 @@ class Board():
             friendly_pieces[move_back] = origin
             move_back.location = origin
             del friendly_locs[dest]
+
+    # Apply sequence of moves to board (using apply_move_retState) 
+    # and return the save sequence. 
+    def apply_moves(self, moves, color):
+        saves = []
+        # Apply moves to board.
+        for move in moves:
+            save = self.apply_move_retState(move[0],move[1], color)
+            saves.append(save)
+        return saves
+
+    def reverse_apply_moves(self, saves, color):
+        for i in range(len(saves)-1, -1, -1):
+            self.reverse_apply_move(saves[i], color)
 
 class Piece():
     def __init__(self, name, number, color, location, rank, directions):
