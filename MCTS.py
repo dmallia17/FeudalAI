@@ -59,6 +59,7 @@ class Node():
 class PlayoutAgent():
     def __init__(self, color):
         self.color = color
+        self.opponent_color = "blue" if self.color == "brown" else "brown"
 
 # A lightweight version of the RandomAgent
 # NOTE: Given the usage of Board's get_random_move function, this is not a
@@ -70,8 +71,64 @@ class RandomPlayoutAgent(PlayoutAgent):
     def get_choice(self, board):
         return board.get_random_move(self.color)[0]
 
+class PureGreedyRandomPlayoutAgent(PlayoutAgent):
+    def get_choice(self, board):
+        chosen_move = None
+        # Make copy of current counts.
+        current_counts = dict(board.get_counts(self.opponent_color))
+        for moves in board.get_all_moves_ref(self.color):
+            # Apply moves.
+            saves = board.apply_moves(moves, self.color)
+            if any_value_change(current_counts,
+                board.get_counts(self.opponent_color)):
+                return moves
+            board.reverse_apply_moves(saves, self.color)
+        # If no pure "greedy" move has been found, take a random action
+        if chosen_move is None:
+            return board.get_random_move(self.color)[0]
+
+# Greedy w.r.t. "best" difference among enemy counts from start to result
+# Simple preferences in order:
+#   1. Eliminate as much royalty as possible
+#   2. Eliminate as many enemy pieces as possible
+#   3. Random move
+class PieceGreedyRandomPlayoutAgent(PlayoutAgent):
+    def get_choice(self, board):
+        current_counts = dict(board.get_counts(self.opponent_color))
+        some_royalty_eliminated = [] # Keep tuples of difference, move
+        some_enemy_eliminated = [] # Keep tuples of difference, move
+        for moves in board.get_all_moves_ref(self.color):
+            # Apply sequence of moves to the board.
+            saves = board.apply_moves(moves, self.color)
+
+            royalty_difference = any_value_change(current_counts,
+                board.get_counts(self.opponent_color), ["king", "prince",
+                "duke"])
+            other_difference = any_value_change(current_counts,
+                board.get_counts(self.opponent_color), ["knight",
+                    "sergeant", "pikemen", "squire", "archer"])
+            if royalty_difference:
+                some_royalty_eliminated.append((moves, royalty_difference))
+            if other_difference:
+                some_enemy_eliminated.append((moves, other_difference))
+
+            # Undo moves.
+            board.reverse_apply_moves(saves, self.color)
+
+        # For either royalty or enemy eliminated moves (in that priority order)
+        # sort the lists by the difference associated with each move, then
+        # take the last element (i.e. with greatest difference) and return it
+        if len(some_royalty_eliminated) > 0:
+            return sorted(some_royalty_eliminated, key=lambda x : x[1])[-1][0]
+        elif len(some_enemy_eliminated) > 0:
+            return sorted(some_enemy_eliminated, key=lambda x : x[1])[-1][0]
+        else: # If no good move has been found, take a random action
+            return board.get_random_move(self.color)[0]
+
 playout_dict = {
-    "random" : RandomPlayoutAgent
+    "random" : RandomPlayoutAgent,
+    "puregreedyrandom" : PureGreedyRandomPlayoutAgent,
+    "piecegreedyrandom" : PieceGreedyRandomPlayoutAgent
 }
 
 class MCTS_UCT_Agent(Agent):
