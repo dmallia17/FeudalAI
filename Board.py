@@ -396,6 +396,11 @@ class Board():
         else:
             return self.brown_pieces_locations, self.blue_pieces_locations
 
+    def get_counts(self, color):
+        if "blue" == color:
+            return self.blue_piece_counts
+        else:
+            return self.brown_piece_counts
 
     # NOTE: DOES NOT REPLICATE A UNIFORM DISTRIBUTION OVER ALL POSSIBLE MOVES
     def get_random_move(self, color):
@@ -1331,7 +1336,7 @@ class Archer(Piece):
         return "archer"
 
     def clone(self):
-        return Squire(self.color, self.location)
+        return Archer(self.color, self.location)
 
 
 
