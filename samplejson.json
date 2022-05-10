@@ -6,7 +6,7 @@
     "blue" : {
         "type" : "random",
         "args" : {
-            "time_limit" : "5",
+            "time_limit" : 5,
             "local_search_method" : "HillClimbingFirstChoice",
             "local_search_init_args" : {
                 "ways_onto_castle_green_weight" : 1,
@@ -25,7 +25,7 @@
     "brown" : {
         "type" : "random",
         "args" : {
-            "time_limit" : "5",
+            "time_limit" : 5,
             "local_search_method" : "SimulatedAnnealing",
             "local_search_init_args" : {
                 "ways_onto_castle_green_weight" : 1,
