@@ -26,7 +26,7 @@ class Minimax_Agent(Agent):
         self.max = float('-inf')
         self.choice = None
         self.prev_time = time.process_time()
-        depth_limit = 1
+        depth_limit = 3
         # Map from color to negation value. 
         
 
@@ -155,7 +155,8 @@ class Minimax_Agent(Agent):
                             board.reverse_apply_move(saves[i], neg_color)
                         if -max_val > call_stack[parent_ptr][id["max_val"]]:
                             call_stack[parent_ptr][id["max_val"]] = -max_val
-                            call_stack[parent_ptr][id["move"]] = move
+                            if cur_depth == 1:
+                                call_stack[parent_ptr][id["move"]] = move
 
             # Increment depth limit (iterative deepening).
             return self.choice
