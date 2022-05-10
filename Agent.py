@@ -58,7 +58,36 @@ class PureGreedyRandomAgent(Agent):
         if chosen_move is None:
             return board.get_random_move(self.color)[0]
 
-# Greedy w.r.t. greatest difference
-class TargetedGreedyRandomAgent(Agent):
+# Greedy w.r.t. "best" difference among enemy counts from start to result
+# Simple preferences in order:
+#   1. Eliminate as much royalty as possible
+#   2. Eliminate as many enemy pieces as possible
+#   3. Random move
+class PieceGreedyRandomAgent(Agent):
     def get_choice(self, board):
-        pass
+        current_counts = board.get_counts(self.opponent_color)
+        some_royalty_eliminated = [] # Keep tuples of difference, move
+        some_enemy_eliminated = [] # Keep tuples of difference, move
+        for (move, new_board) in board.get_all_moves(self.color):
+            royalty_difference = any_value_change(current_counts,
+                new_board.get_counts(self.opponent_color), ["king", "prince",
+                "duke"])
+            other_difference = any_value_change(current_counts,
+                new_board.get_counts(self.opponent_color), ["knight",
+                    "sergeant", "pikemen", "squire", "archer"])
+            if royalty_difference:
+                some_royalty_eliminated.append((move, royalty_difference))
+            if other_difference:
+                some_enemy_eliminated.append((move, other_difference))
+
+        # For either royalty or enemy eliminated moves (in that priority order)
+        # sort the lists by the difference associated with each move, then
+        # take the last element (i.e. with greatest difference) and return it
+        if len(some_royalty_eliminated) > 0:
+            return sorted(some_royalty_eliminated, key=lambda x : x[1])[-1][0]
+        elif len(some_enemy_eliminated) > 0:
+            return sorted(some_enemy_eliminated, key=lambda x : x[1])[-1][0]
+        else: # If no good move has been found, take a random action
+            return board.get_random_move(self.color)[0]
+
+
