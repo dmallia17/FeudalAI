@@ -65,21 +65,30 @@ class PureGreedyRandomAgent(Agent):
 #   3. Random move
 class PieceGreedyRandomAgent(Agent):
     def get_choice(self, board):
-        current_counts = board.get_counts(self.opponent_color)
+        current_counts = dict(board.get_counts(self.opponent_color))
         some_royalty_eliminated = [] # Keep tuples of difference, move
         some_enemy_eliminated = [] # Keep tuples of difference, move
-        for (move, new_board) in board.get_all_moves(self.color):
+        for moves in board.get_all_moves_ref(self.color):
+            saves = []
+            # Apply moves to board.
+            for move in moves:
+                save = board.apply_move_retState(move[0],move[1], self.color)
+                saves.append(save)
+            
             royalty_difference = any_value_change(current_counts,
-                new_board.get_counts(self.opponent_color), ["king", "prince",
+                board.get_counts(self.opponent_color), ["king", "prince",
                 "duke"])
             other_difference = any_value_change(current_counts,
-                new_board.get_counts(self.opponent_color), ["knight",
+                board.get_counts(self.opponent_color), ["knight",
                     "sergeant", "pikemen", "squire", "archer"])
             if royalty_difference:
-                some_royalty_eliminated.append((move, royalty_difference))
+                some_royalty_eliminated.append((moves, royalty_difference))
             if other_difference:
-                some_enemy_eliminated.append((move, other_difference))
+                some_enemy_eliminated.append((moves, other_difference))
 
+            # Undo moves
+            for i in range(len(saves)-1, -1, -1):
+                board.reverse_apply_move(saves[i], self.color)
         # For either royalty or enemy eliminated moves (in that priority order)
         # sort the lists by the difference associated with each move, then
         # take the last element (i.e. with greatest difference) and return it

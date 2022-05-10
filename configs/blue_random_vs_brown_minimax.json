@@ -1,0 +1,45 @@
+{
+    "seed" : null,
+    "num_moves_permitted" : 2,
+    "terrain" : "terrain_3M_official_1.txt",
+    "setup" : "random",
+    "blue" : {
+        "type" : "random",
+        "args" : {
+            "time_limit" : "5.0",
+            "local_search_method" : "HillClimbingFirstChoice",
+            "local_search_init_args" : {
+                "ways_onto_castle_green_weight" : 1,
+                "king_shielded_weight" : 1,
+                "opponent_coverage_weight" : 1,
+                "proximity_to_boundary_weight" : 1,
+                "royalty_avengeable_weight" : 1,
+                "non_royalty_avengeable_weight" : 1,
+                "proximity_pieces_weight" : 1
+            },
+            "local_search_run_args" : {
+                "restarts" : 1
+            }
+        }
+    },
+    "brown" : {
+        "type" : "minimax",
+        "args" : {
+            "time_limit" : "5.0",
+            "local_search_method" : "SimulatedAnnealing",
+            "local_search_init_args" : {
+                "ways_onto_castle_green_weight" : 1,
+                "king_shielded_weight" : 1,
+                "opponent_coverage_weight" : 1,
+                "proximity_to_boundary_weight" : 1,
+                "royalty_avengeable_weight" : 1,
+                "non_royalty_avengeable_weight" : 1,
+                "proximity_pieces_weight" :1
+            },
+            "local_search_run_args" : {
+                "t_init" : 10,
+                "alpha"  : 0.99
+            }
+        }
+    }
+}

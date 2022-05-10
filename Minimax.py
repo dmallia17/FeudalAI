@@ -76,7 +76,6 @@ class Minimax_Agent(Agent):
                     saves]        = call_stack.pop()
                 # Negated color.
                 neg_color = "brown" if color == "blue" else "blue"
-
                 # If at root node.
                 if cur_depth == 0:
                     # Check visited as flag to determine if moves need to be 

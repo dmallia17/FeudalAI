@@ -545,20 +545,20 @@ class Board():
 
     # Pass by reference analogue to get_moves. 
     # This function is called by get_all_moves_ref()
-    def get_moves_ref(self, pieces_combo, board, moves_list):
+    def get_moves_ref(self, pieces_combo, board, moves_list, all_moves):
         piece = pieces_combo[0]
         friendly_locs, opponent_locs = board.get_locations(piece.color)
         # Base case:
         if len(pieces_combo) == 1:
             for move in piece.get_moves_list(board, friendly_locs, opponent_locs):
                 moves_list.append((piece.location, move))
-                yield moves_list
+                all_moves.append(moves_list[:])
                 moves_list.pop()
         else: # Recursion
             for move in piece.get_moves_list(board, friendly_locs, opponent_locs):
                 moves_list.append((piece.location, move))
                 save = board.apply_move_retState(piece.location, move, piece.color)
-                yield from board.get_moves_ref(pieces_combo[1:], board, moves_list)
+                board.get_moves_ref(pieces_combo[1:], board, moves_list, all_moves)
                 board.reverse_apply_move(save, piece.color)
                 moves_list.pop()
 
@@ -576,10 +576,12 @@ class Board():
             friendly_locs = self.brown_pieces_locations
             opponent_locs = self.blue_pieces_locations
 
+        all_moves = []
+
         for i in range(1, self.moves_max):
             for pieces_combo in combinations(pieces.keys(), i):
-                yield from self.get_moves_ref(sorted(pieces_combo), self, [])
-
+                self.get_moves_ref(sorted(pieces_combo), self, [], all_moves)
+        return all_moves
 
     # Must stitch together all possible moves of all pieces, in proper order...
     # Returning copies of itself where the game has been updated to reflect the
