@@ -1,3 +1,4 @@
+from turtle import st
 from Board import *
 from Agent import *
 import time
@@ -9,24 +10,23 @@ class Minimax_Agent(Agent):
         super().__init__(color, time_limit, local_search_method,
                         local_search_init_args, local_search_run_args)
         self.verbose = verbose
-        self.over = False
-        self.max = float('-inf')
-        self.choice = None
         self.neg_color = "brown" if color == "blue" else "blue"
         self.color_weight = {self.color: 1, self.neg_color: -1}
 
     # Check time and update
     def update_time(self):                                              
-        if time.process_time() - self.prevTime > self.time_limit:                       
+        print(time.process_time())
+        if time.process_time() - self.prev_time > self.time_limit:                       
             self.over = True                                                                                        
         self.prev_time = time.process_time()
 
     # Implements Negamax (Minimax) algorithm.
     def get_choice(self, board):
-        self.max = float('-inf')
-        self.choice = None
-        self.prev_time = time.process_time()
-        depth_limit = 3
+        maximum = float('-inf')
+        choice = None
+        over = False
+        start_time = time.process_time()
+        depth_limit = 1
         # Map from color to negation value. 
         
 
@@ -41,7 +41,7 @@ class Minimax_Agent(Agent):
                 "saves"     : 6
             }
 
-        while not self.over:
+        while not over:
             # Negamax unrolled function call stack. (In order within tuple).
             #
             # @current depth, 
@@ -62,8 +62,10 @@ class Minimax_Agent(Agent):
             # a parent node is pushed onto the stack, it will remain at the 
             # same index while its children are being explored. 
             call_stack = [[0, [], self.color, -1.0, 0, False, []]]
-            
             while len(call_stack) > 0:
+                if time.process_time() - start_time > self.time_limit:
+                    over = True
+                    break   
                 # Get reference to location of current node. 
                 cur_ptr = len(call_stack)-1
                 # Pop node from the stack.
@@ -75,6 +77,7 @@ class Minimax_Agent(Agent):
                     visited, 
                     saves]        = call_stack.pop()
                 # Negated color.
+                #print(cur_depth, max_val)
                 neg_color = "brown" if color == "blue" else "blue"
                 # If at root node.
                 if cur_depth == 0:
@@ -96,9 +99,9 @@ class Minimax_Agent(Agent):
                     # Otherwise we are done with current depth-limit 
                     # iteration. Update max. 
                     else:
-                        if max_val > self.max:
-                            self.max = max_val
-                            self.choice = move
+                        if max_val > maximum:         
+                            maximum = max_val
+                            choice = move
                 # Not at root node.
                 else:
                     # If node hasn't been visited, apply move.
@@ -110,13 +113,7 @@ class Minimax_Agent(Agent):
                             saves.append(save)
                         # Check if at depth-limit or terminal node.
                         if board.game_over() or cur_depth == depth_limit:
-                            if color == "blue" and board.blue_lost():
-                                max_val = self.color_weight[color] * 10.0
-                            elif color == "blue" and board.brown_lost():
-                                max_val = self.color_weight[color] * 10.0
-                            elif color == "brown" and board.brown_lost():
-                                max_val = self.color_weight[color] * 10.0
-                            elif color == "brown" and board.blue_lost():
+                            if board.game_over():
                                 max_val = self.color_weight[color] * 10.0
                             else:
                                 max_val = self.color_weight[color] * self.evaluate_node(board)
@@ -159,7 +156,8 @@ class Minimax_Agent(Agent):
                                 call_stack[parent_ptr][id["move"]] = move
 
             # Increment depth limit (iterative deepening).
-            return self.choice
+            depth_limit += 1
+        return choice
 
     def royalty_count(self, board, counts):
         return (1 - (counts["king"] + counts["prince"] + counts["duke"])/3.0)
