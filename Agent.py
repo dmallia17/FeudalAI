@@ -13,8 +13,9 @@ class Agent():
         self.color = color
         self.opponent_color = "blue" if self.color == "brown" else "brown"
         self.time_limit = time_limit
-        self.local_search_method = local_search_agents[
-            local_search_method](**local_search_init_args)
+        if local_search_init_args is not None:
+            self.local_search_method = local_search_agents[
+                local_search_method](**local_search_init_args)
         self.local_search_run_args = local_search_run_args # Dictionary
 
     # @return   A list of (origin, new location) pairs

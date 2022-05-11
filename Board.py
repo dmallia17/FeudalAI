@@ -383,6 +383,65 @@ class Board():
 
         return counts == self.target_counts
 
+
+    def place_some_pieces(self, color, configuration):
+        # dp = dict_pieces
+        # dl = dict_locations
+        # c  = castle
+        if color == "brown":
+            bounds = (12,23)
+            for loc in configuration.values():
+                if type(loc) == list:
+                    for loc_sub in loc:
+                        if loc_sub[0] < bounds[0] or loc_sub[0] > bounds[1]:
+                            return False
+                else:
+                    if loc[0] < bounds[0] or loc[1] > bounds[1]:
+                        return False
+            dp = self.brown_pieces
+            dl = self.brown_pieces_locations
+            c = self.brown_castle
+            counts = self.brown_piece_counts
+        elif color == "blue":
+            bounds = (0,11)
+            for loc in configuration.values():
+                if type(loc) == list:
+                    for loc_sub in loc:
+                        if loc_sub[0] < bounds[0] or loc_sub[0] > bounds[1]:
+                            return False
+                else:
+                    if loc[0] < bounds[0] or loc[0] > bounds[1]:
+                        return False
+            dp = self.blue_pieces
+            dl = self.blue_pieces_locations
+            c = self.blue_castle
+            counts = self.blue_piece_counts
+
+
+        
+        #self.add_piece(dp, dl, c, color, counts,
+        #                "castle_interior", configuration["castle_interior"]) 
+        #self.add_piece(dp, dl, c, color, counts,
+        #                "castle_green", configuration["castle_green"]) 
+        self.add_piece(dp, dl, c, color, counts,
+                        "king", configuration["king"])
+        #self.add_piece(dp, dl, c, color, counts,
+        #                "prince", configuration["prince"])
+        #self.add_piece(dp, dl, c, color, counts,
+        #                "duke", configuration["duke"])
+        #for loc in configuration["knight"]:
+        #    self.add_piece(dp, dl, c, color, counts, "knight", loc)
+        #for loc in configuration["sergeant"]:
+        #    self.add_piece(dp, dl, c, color, counts, "sergeant", loc)
+        #for loc in configuration["pikemen"]:
+        #    self.add_piece(dp, dl, c, color, counts, "pikemen", loc)
+        #self.add_piece(dp, dl, c, color, counts,
+        #                "squire", configuration["squire"])
+        #self.add_piece(dp, dl, c, color, counts,
+        #                "archer", configuration["archer"])
+
+        return True
+
     def get_pieces(self, color):
         if "blue" == color:
             return self.blue_pieces
