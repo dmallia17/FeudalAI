@@ -59,6 +59,7 @@ class Node():
 class PlayoutAgent():
     def __init__(self, color):
         self.color = color
+        self.opponent_color = "blue" if self.color == "brown" else "brown"
 
 # A lightweight version of the RandomAgent
 # NOTE: Given the usage of Board's get_random_move function, this is not a
@@ -70,8 +71,64 @@ class RandomPlayoutAgent(PlayoutAgent):
     def get_choice(self, board):
         return board.get_random_move(self.color)[0]
 
+class PureGreedyRandomPlayoutAgent(PlayoutAgent):
+    def get_choice(self, board):
+        chosen_move = None
+        # Make copy of current counts.
+        current_counts = dict(board.get_counts(self.opponent_color))
+        for moves in board.get_all_moves_ref(self.color):
+            # Apply moves.
+            saves = board.apply_moves(moves, self.color)
+            if any_value_change(current_counts,
+                board.get_counts(self.opponent_color)):
+                return moves
+            board.reverse_apply_moves(saves, self.color)
+        # If no pure "greedy" move has been found, take a random action
+        if chosen_move is None:
+            return board.get_random_move(self.color)[0]
+
+# Greedy w.r.t. "best" difference among enemy counts from start to result
+# Simple preferences in order:
+#   1. Eliminate as much royalty as possible
+#   2. Eliminate as many enemy pieces as possible
+#   3. Random move
+class PieceGreedyRandomPlayoutAgent(PlayoutAgent):
+    def get_choice(self, board):
+        current_counts = dict(board.get_counts(self.opponent_color))
+        some_royalty_eliminated = [] # Keep tuples of difference, move
+        some_enemy_eliminated = [] # Keep tuples of difference, move
+        for moves in board.get_all_moves_ref(self.color):
+            # Apply sequence of moves to the board.
+            saves = board.apply_moves(moves, self.color)
+
+            royalty_difference = any_value_change(current_counts,
+                board.get_counts(self.opponent_color), ["king", "prince",
+                "duke"])
+            other_difference = any_value_change(current_counts,
+                board.get_counts(self.opponent_color), ["knight",
+                    "sergeant", "pikemen", "squire", "archer"])
+            if royalty_difference:
+                some_royalty_eliminated.append((moves, royalty_difference))
+            if other_difference:
+                some_enemy_eliminated.append((moves, other_difference))
+
+            # Undo moves.
+            board.reverse_apply_moves(saves, self.color)
+
+        # For either royalty or enemy eliminated moves (in that priority order)
+        # sort the lists by the difference associated with each move, then
+        # take the last element (i.e. with greatest difference) and return it
+        if len(some_royalty_eliminated) > 0:
+            return sorted(some_royalty_eliminated, key=lambda x : x[1])[-1][0]
+        elif len(some_enemy_eliminated) > 0:
+            return sorted(some_enemy_eliminated, key=lambda x : x[1])[-1][0]
+        else: # If no good move has been found, take a random action
+            return board.get_random_move(self.color)[0]
+
 playout_dict = {
-    "random" : RandomPlayoutAgent
+    "random" : RandomPlayoutAgent,
+    "puregreedyrandom" : PureGreedyRandomPlayoutAgent,
+    "piecegreedyrandom" : PieceGreedyRandomPlayoutAgent
 }
 
 class MCTS_UCT_Agent(Agent):
@@ -103,7 +160,7 @@ class MCTS_UCT_Agent(Agent):
     # The function for running MCTS
     def get_choice(self, board):
         # Start a clock to ensure an answer is given within the time limit
-        start_time = process_time()
+        start_time = time()
         # Start tracking number of simulations and max depth
         number_of_sims = 0
         max_depth = 0
@@ -114,7 +171,7 @@ class MCTS_UCT_Agent(Agent):
         # While there is remaining time, run the following four steps:
         # 1. select, 2. expand, 3. simulate, and 4. backpropagate
         # While checking for running out of time at any point in the loop
-        while (process_time() - start_time < self.safe_limit):
+        while (time() - start_time < self.safe_limit):
             selected = self.select(tree, start_time)
             if selected is None:
                 break
@@ -171,7 +228,7 @@ class MCTS_UCT_Agent(Agent):
     def select(self, node, start_time):
         curr_node = node
         while not curr_node.is_terminal():
-            if (process_time() - start_time > self.safe_limit):
+            if (time() - start_time > self.safe_limit):
                 return None
 
             if not curr_node.is_fully_expanded():
@@ -188,7 +245,7 @@ class MCTS_UCT_Agent(Agent):
     # would only be for the moves that involve moving as many pieces as
     # allowed
     def expand(self, node, start_time):
-        if (process_time() - start_time > self.safe_limit):
+        if (time() - start_time > self.safe_limit):
             return None
 
         # Choose a random action and get a new state
@@ -213,7 +270,7 @@ class MCTS_UCT_Agent(Agent):
 
     # Simulate a run of the game from the newly added child node
     def simulate(self, child, start_time):
-        if (process_time() - start_time > self.safe_limit):
+        if (time() - start_time > self.safe_limit):
             return None
 
         blue_turn = True if "blue" == child.color else False
@@ -232,7 +289,7 @@ class MCTS_UCT_Agent(Agent):
         curr_node = child
         curr_result = result
         while curr_node is not None:
-            if (process_time() - start_time > self.safe_limit):
+            if (time() - start_time > self.safe_limit):
                 return False
             curr_node.num_playouts += 1
             curr_node.utility += curr_result
@@ -272,8 +329,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
     # The function for running MCTS
     def get_choice(self, board):
         # Start a clock to ensure an answer is given within the time limit
-        start_time = process_time()
-        start_time_independent = time()
+        start_time = time()
         # Start tracking number of simulations and max depth
         number_of_sims = 0
         max_depth = 0
@@ -284,7 +340,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         # While there is remaining time, run the following four steps:
         # 1. select, 2. expand, 3. simulate, and 4. backpropagate
         # While checking for running out of time at any point in the loop
-        while (process_time() - start_time < self.safe_limit):
+        while (time() - start_time < self.safe_limit):
             selected = self.select(tree, start_time)
             if selected is None:
                 break
@@ -293,7 +349,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
                 break
             if child.depth > max_depth:
                 max_depth = child.depth
-            result = self.simulate(child, start_time_independent)
+            result = self.simulate(child, start_time)
             if result is None:
                 break
             number_of_sims += self.num_processes
@@ -337,7 +393,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         curr_node = child
         curr_result = result
         while curr_node is not None:
-            if (process_time() - start_time > self.safe_limit):
+            if (time() - start_time > self.safe_limit):
                 return False
             curr_node.num_playouts += self.num_processes
             curr_node.utility += curr_result
