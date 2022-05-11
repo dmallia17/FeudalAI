@@ -13,32 +13,25 @@ class Minimax_Agent(Agent):
         self.neg_color = "brown" if color == "blue" else "blue"
         self.color_weight = {self.color: 1, self.neg_color: -1}
 
-    # Check time and update
-    def update_time(self):                                              
-        print(time.process_time())
-        if time.process_time() - self.prev_time > self.time_limit:                       
-            self.over = True                                                                                        
-        self.prev_time = time.process_time()
-
     # Implements Negamax (Minimax) algorithm.
     def get_choice(self, board):
         maximum = float('-inf')
         choice = None
         over = False
         start_time = time.process_time()
-        depth_limit = 1
-        # Map from color to negation value. 
-        
+        depth_limit = 2
 
         # Call stack tuple arg_name -> position dictionary.
         id = {
                 "cur_depth" : 0,
                 "move"      : 1,
                 "color"     : 2,
-                "max_val"   : 3, 
-                "parent_ptr": 4,
-                "visited"   : 5,
-                "saves"     : 6
+                "alpha"     : 3,
+                "beta"      : 4,
+                "value"     : 5,
+                "parent_ptr": 6,
+                "visited"   : 7,
+                "saves"     : 8
             }
 
         while not over:
@@ -61,7 +54,7 @@ class Minimax_Agent(Agent):
             # - parent reference is determined by the invariant that once 
             # a parent node is pushed onto the stack, it will remain at the 
             # same index while its children are being explored. 
-            call_stack = [[0, [], self.color, -1.0, 0, False, []]]
+            call_stack = [[0, [], self.color, float('-inf'), float('inf'), float('-inf'), 0, False, []]]
             while len(call_stack) > 0:
                 if time.process_time() - start_time > self.time_limit:
                     over = True
@@ -72,12 +65,14 @@ class Minimax_Agent(Agent):
                 [   cur_depth, 
                     move, 
                     color, 
-                    max_val, 
+                    alpha,
+                    beta,
+                    value, 
                     parent_ptr, 
                     visited, 
                     saves]        = call_stack.pop()
                 # Negated color.
-                #print(cur_depth, max_val)
+                #print(cur_depth, alpha)
                 neg_color = "brown" if color == "blue" else "blue"
                 # If at root node.
                 if cur_depth == 0:
@@ -85,13 +80,15 @@ class Minimax_Agent(Agent):
                     # generated (Since root move is initially None). 
                     if False == visited:
                         # First push the root back onto the stack. 
-                        call_stack.append([0, None, color, -1.0, None, True, []])
+                        call_stack.append([0, [], color, alpha, beta, value, cur_ptr, True, []])
                         # Generate children of root node and push onto stack. 
                         for next_move in board.get_all_moves_ref(color):
                             call_stack.append([ 1, 
                                                 next_move[:], 
                                                 neg_color, 
-                                                float('-inf'), 
+                                                -beta,
+                                                -alpha, 
+                                                float('-inf'),
                                                 cur_ptr,
                                                 False,
                                                 []])
@@ -99,8 +96,8 @@ class Minimax_Agent(Agent):
                     # Otherwise we are done with current depth-limit 
                     # iteration. Update max. 
                     else:
-                        if max_val > maximum:         
-                            maximum = max_val
+                        if value > maximum:        
+                            maximum = value
                             choice = move
                 # Not at root node.
                 else:
@@ -114,14 +111,23 @@ class Minimax_Agent(Agent):
                         # Check if at depth-limit or terminal node.
                         if board.game_over() or cur_depth == depth_limit:
                             if board.game_over():
-                                max_val = self.color_weight[color] * 10.0
+                                if self.color == "brown" and board.brown_lost():
+                                    value = self.color_weight[color] * -10.0
+                                if self.color == "brown" and board.blue_lost():
+                                    value = self.color_weight[color] * 10.0
+                                if self.color == "blue" and board.blue_lost():
+                                    value = self.color_weight[color] * -10.0
+                                if self.color == "blue" and board.brown_lost():
+                                    value = self.color_weight[color] * 10.0
                             else:
-                                max_val = self.color_weight[color] * self.evaluate_node(board)
+                                value = self.color_weight[color] * self.evaluate_node(board)
                             # Push terminal node back onto stack (with visited flag set).
                             call_stack.append([ cur_depth,
                                                 move[:],
                                                 color,
-                                                max_val, 
+                                                alpha,
+                                                beta,
+                                                value, 
                                                 parent_ptr,
                                                 True,
                                                 saves
@@ -132,7 +138,9 @@ class Minimax_Agent(Agent):
                             call_stack.append([ cur_depth,
                                                 move[:],
                                                 color,
-                                                max_val, 
+                                                alpha,
+                                                beta, 
+                                                value,
                                                 parent_ptr,
                                                 True,
                                                 saves
@@ -142,47 +150,71 @@ class Minimax_Agent(Agent):
                                 call_stack.append([ cur_depth+1, 
                                                     next_move[:], 
                                                     neg_color, 
-                                                    float('-inf'), 
-                                                    cur_ptr,
+                                                    -beta, 
+                                                    -alpha,
+                                                    float('-inf'),
+                                                    parent_ptr,
                                                     False,
                                                     []])
                     # Otherwise node has been visited, undo moves and propagate values up. 
                     else:
                         for i in range(len(saves)-1, -1, -1):
                             board.reverse_apply_move(saves[i], neg_color)
-                        if -max_val > call_stack[parent_ptr][id["max_val"]]:
-                            call_stack[parent_ptr][id["max_val"]] = -max_val
+                        if -value > call_stack[parent_ptr][id["value"]]:
+                            call_stack[parent_ptr][id["value"]] = -value
                             if cur_depth == 1:
                                 call_stack[parent_ptr][id["move"]] = move
+                        if -value > call_stack[parent_ptr][id["alpha"]]:
+                            call_stack[parent_ptr][id["alpha"]] = -value
 
+                        if call_stack[parent_ptr][id["alpha"]] > call_stack[parent_ptr][id["beta"]]:
+                            call_stack = call_stack[:parent_ptr+1]
+                            continue
             # Increment depth limit (iterative deepening).
-            depth_limit += 1
+            break
+        print(time.process_time() - start_time)
         return choice
 
-    def royalty_count(self, board, counts):
+    def enemy_royalty_count(self, counts):
         return (1 - (counts["king"] + counts["prince"] + counts["duke"])/3.0)
     
-    def pieces_remaining(self, board,counts):
+    def friendly_royalty_count(self, counts):
+        return (counts["king"] + counts["prince"] + counts["duke"])/3.0
+
+    def friendly_pieces_remaining(self,counts):
         res = 0.0
         res += counts["knight"]
         res += counts["sergeant"]
         res += counts["pikemen"]
         res += counts["squire"]
         res += counts["archer"]
+        return (res / 10.0)
 
+    def enemy_pieces_remaining(self, counts):
+        res = 0.0
+        res += counts["knight"]
+        res += counts["sergeant"]
+        res += counts["pikemen"]
+        res += counts["squire"]
+        res += counts["archer"]
         return 1 - (res / 10.0)
 
     def evaluate_node(self, board):
         if self.color == "brown":
-            counts = board.blue_piece_counts
+            friendly_counts = board.brown_piece_counts
+            enemy_counts = board.blue_piece_counts
         else:
-            counts = board.brown_piece_counts
+            friendly_counts = board.blue_piece_counts
+            enemy_counts = board.brown_piece_counts
         
         value = 0.0
-        value += self.royalty_count(board, counts)
+        value += self.enemy_royalty_count(enemy_counts)
+        value += self.friendly_royalty_count(friendly_counts)
+        
+        value += self.friendly_pieces_remaining(friendly_counts)
+        value += self.enemy_pieces_remaining(enemy_counts)
 
-        value += self.pieces_remaining(board,counts)
-
+        #value += self.in_enemy_castle(enemy_loc)
         return value
 
     
