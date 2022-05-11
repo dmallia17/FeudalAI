@@ -18,7 +18,9 @@ class Minimax_Agent(Agent):
         choice = []
         over = False
         start_time = time.process_time()
-        depth_limit = 2
+        depth_limit = 1
+        nodes_pruned = 0
+        max_depth = 0
 
         # Call stack tuple arg_name -> position dictionary.
         id = {
@@ -55,9 +57,16 @@ class Minimax_Agent(Agent):
             # same index while its children are being explored. 
             call_stack = [[0, [], self.color, float('-inf'), float('inf'), float('-inf'), 0, False, []]]
             while len(call_stack) > 0:
+
+                if time.process_time() - start_time > self.time_limit:
+                    over = True
+                    break
+
                 # Get reference to location of current node. 
                 cur_ptr = len(call_stack)-1
+                #print(call_stack)
                 # Pop node from the stack.
+                #print(call_stack)
                 [   cur_depth, 
                     move, 
                     color, 
@@ -67,7 +76,8 @@ class Minimax_Agent(Agent):
                     parent_ptr, 
                     visited, 
                     saves]        = call_stack.pop()
-                
+                if cur_depth > max_depth:
+                    max_depth = cur_depth
                 # Negated color.
                 #print(cur_depth, alpha)
                 neg_color = "brown" if color == "blue" else "blue"
@@ -93,6 +103,7 @@ class Minimax_Agent(Agent):
                     # Otherwise we are done with current depth-limit 
                     # iteration. Update max. 
                     else:
+                        
                         if value > maximum:        
                             maximum = value
                             choice = move
@@ -156,23 +167,24 @@ class Minimax_Agent(Agent):
                                                     []])
                     # Otherwise node has been visited, undo moves and propagate values up. 
                     else:
-                        #print(value)
                         for i in range(len(saves)-1, -1, -1):
                             board.reverse_apply_move(saves[i], neg_color)
-                        
                         if -value > call_stack[parent_ptr][id["value"]]:
                             call_stack[parent_ptr][id["value"]] = -value
                             if cur_depth == 1:
                                 call_stack[parent_ptr][id["move"]] = move
-                        #if -value > call_stack[parent_ptr][id["alpha"]]:
-                        #    call_stack[parent_ptr][id["alpha"]] = -value
-
-                        #if call_stack[parent_ptr][id["alpha"]] > call_stack[parent_ptr][id["beta"]]:
-                        #    call_stack = call_stack[:parent_ptr+1]
-                        #    continue
+                        if -value > call_stack[parent_ptr][id["alpha"]]:
+                            call_stack[parent_ptr][id["alpha"]] = -value
+                            for i in range(parent_ptr, cur_ptr):
+                                call_stack[i][id["alpha"]] = -value
+                        if call_stack[parent_ptr][id["alpha"]] >= call_stack[parent_ptr][id["beta"]]:
+                            nodes_pruned += (len(call_stack) - parent_ptr)
+                            call_stack = call_stack[:parent_ptr+1]
+                            continue
             # Increment depth limit (iterative deepening).
-            break
-        print(time.process_time() - start_time)
+            depth_limit += 1
+        print("NODES PRUNED:", nodes_pruned)
+        print(max_depth)
         return choice
 
     def enemy_royalty_count(self, counts):
@@ -209,7 +221,7 @@ class Minimax_Agent(Agent):
         
         value = 0.0
         value += self.enemy_royalty_count(enemy_counts)
-        #value += self.enemy_pieces_remaining(enemy_counts)
+        value += self.enemy_pieces_remaining(enemy_counts)
 
         #value += self.in_enemy_castle(enemy_loc)
         return value
