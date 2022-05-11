@@ -13,7 +13,7 @@
 #           (2012), 1-43.
 
 import math, multiprocessing, os, random
-from time import process_time, time
+from time import time
 from Agent import *
 from GameExecution import *
 
@@ -48,6 +48,7 @@ class Node():
         self.num_children = 0
         self.num_possible_children = state.get_num_all_moves(color)
         self.actions_tried = set()
+        self.preferred_actions = None
 
     def is_fully_expanded(self):
         return self.num_children == self.num_possible_children
@@ -71,6 +72,11 @@ class RandomPlayoutAgent(PlayoutAgent):
     def get_choice(self, board):
         return board.get_random_move(self.color)[0]
 
+    # Returns the empty list as this agent has no "preferences" before
+    # resorting to random gameplay.
+    def get_preferences(self, board):
+        return []
+
 class PureGreedyRandomPlayoutAgent(PlayoutAgent):
     def get_choice(self, board):
         chosen_move = None
@@ -86,6 +92,23 @@ class PureGreedyRandomPlayoutAgent(PlayoutAgent):
         # If no pure "greedy" move has been found, take a random action
         if chosen_move is None:
             return board.get_random_move(self.color)[0]
+
+    # Retrieves the moves that this agent would consider
+    # before restoring to random gameplay - here an unsorted (without regard
+    # to enemy piece types or quanity) list of moves that eliminate enemy
+    # pieces.
+    def get_preferences(self, board):
+        preferences = []
+        # Make copy of current counts.
+        current_counts = dict(board.get_counts(self.opponent_color))
+        for moves in board.get_all_moves_ref(self.color):
+            # Apply moves.
+            saves = board.apply_moves(moves, self.color)
+            if any_value_change(current_counts,
+                board.get_counts(self.opponent_color)):
+                preferences.append(moves)
+            board.reverse_apply_moves(saves, self.color)
+        return preferences
 
 # Greedy w.r.t. "best" difference among enemy counts from start to result
 # Simple preferences in order:
@@ -125,6 +148,39 @@ class PieceGreedyRandomPlayoutAgent(PlayoutAgent):
         else: # If no good move has been found, take a random action
             return board.get_random_move(self.color)[0]
 
+    # Retrieves the sorted ordering of moves that this agent would consider
+    # before restoring to random gameplay - thus it returns moves that
+    # eliminate royalty (in descending, from most eliminated to least),
+    # followed by moves that eliminate any enemy piece (again, in descending
+    # order).
+    def get_preferences(self, board):
+        current_counts = dict(board.get_counts(self.opponent_color))
+        some_royalty_eliminated = [] # Keep tuples of difference, move
+        some_enemy_eliminated = [] # Keep tuples of difference, move
+        for moves in board.get_all_moves_ref(self.color):
+            # Apply sequence of moves to the board.
+            saves = board.apply_moves(moves, self.color)
+
+            royalty_difference = any_value_change(current_counts,
+                board.get_counts(self.opponent_color), ["king", "prince",
+                "duke"])
+            other_difference = any_value_change(current_counts,
+                board.get_counts(self.opponent_color), ["knight",
+                    "sergeant", "pikemen", "squire", "archer"])
+            if royalty_difference:
+                some_royalty_eliminated.append((moves, royalty_difference))
+            if other_difference:
+                some_enemy_eliminated.append((moves, other_difference))
+
+            # Undo moves.
+            board.reverse_apply_moves(saves, self.color)
+
+        combined = (sorted(some_royalty_eliminated, key=lambda x : x[1],
+            reverse=True) + sorted(some_enemy_eliminated, key=lambda x : x[1],
+            reverse=True))
+
+        return [c[0] for c in combined]
+
 playout_dict = {
     "random" : RandomPlayoutAgent,
     "puregreedyrandom" : PureGreedyRandomPlayoutAgent,
@@ -157,6 +213,12 @@ class MCTS_UCT_Agent(Agent):
         self.num_simulations = []
         self.max_depths = []
 
+    def get_playout_agent(self, color):
+        if "blue" == color:
+            return self.playout_blue
+        else:
+            return self.playout_brown
+
     # The function for running MCTS
     def get_choice(self, board):
         # Start a clock to ensure an answer is given within the time limit
@@ -167,6 +229,8 @@ class MCTS_UCT_Agent(Agent):
 
         # Initialize the tree
         tree = Node(board.clone(), None, None, 0, self.color, 0, 0)
+        tree.preferred_actions = \
+            self.get_playout_agent(self.color).get_preferences(tree.state)
 
         # While there is remaining time, run the following four steps:
         # 1. select, 2. expand, 3. simulate, and 4. backpropagate
@@ -181,11 +245,13 @@ class MCTS_UCT_Agent(Agent):
             if child.depth > max_depth:
                 max_depth = child.depth
             result = self.simulate(child, start_time)
-            if result is None:
+            if result is None: # Incomplete statistics, remove the child
+                selected.children.remove(child)
                 break
             number_of_sims += 1
-            if not self.back_propagate(result, child, start_time):
-                break
+            # if not self.back_propagate(result, child, start_time):
+            #     break
+            self.back_propagate(result, child, start_time)
 
         # Update stats from this decision
         self.num_simulations.append(number_of_sims)
@@ -238,6 +304,9 @@ class MCTS_UCT_Agent(Agent):
 
         return curr_node
 
+    # The below applies after certain "preferences" under the playout policy
+    # have been considered - thus some (hopefully) "strong" moves are
+    # considered first, which is a key concern given time limitations.
     # Per the Browne et al. paper, this uses "random" expansion - however, as
     # noted elsewhere, get_random_move does not return all moves with uniform
     # random probability - for the purposes of expansion though this is
@@ -248,23 +317,37 @@ class MCTS_UCT_Agent(Agent):
         if (time() - start_time > self.safe_limit):
             return None
 
-        # Choose a random action and get a new state
-        random_action, new_board = node.state.get_random_move(node.color)
-        # If action has already been tried, get a new one
-        while (tuple(random_action) in node.actions_tried):
-            random_action, new_board = node.state.get_random_move(node.color)
+        # If there are preferred actions to try first, pop them
+        if node.preferred_actions:
+            chosen_action = node.preferred_actions.pop(0)
+            new_board = node.state.clone()
+            new_board.apply_moves(chosen_action, node.color)
+        # Else choose a random action and get a new state
+        else:
+            chosen_action, new_board = node.state.get_random_move(node.color)
+            # If action has already been tried, get a new one
+            while (tuple(chosen_action) in node.actions_tried):
+                chosen_action, new_board = node.state.get_random_move(
+                    node.color)
 
         # Prepare node for that state
         # First the color (i.e. whose turn it is) should be the opposite of the
         # parent
         new_color = "blue" if node.color == "brown" else "brown"
-        new_node = Node(state=new_board, parent=node, action=random_action,
+        new_node = Node(state=new_board, parent=node, action=chosen_action,
             depth=(node.depth + 1), color=new_color, utility=0, num_playouts=0)
+        # NOTE: The preferences being obtained here are actually those of the
+        # opponent - hopefully this makes sense, as we would be first examining
+        # those states that would rest from the enemy playing under the
+        # simulation policy (again, hopefully then considering "strong" enemy
+        # moves, allowing us to avoid traps).
+        new_node.preferred_actions = \
+            self.get_playout_agent(new_color).get_preferences(new_board)
 
         # Handle the bookkeeping for the parent
         node.children.append(new_node)
         node.num_children += 1
-        node.actions_tried.add(tuple(random_action))
+        node.actions_tried.add(tuple(chosen_action))
 
         return new_node
 
@@ -281,7 +364,7 @@ class MCTS_UCT_Agent(Agent):
         if winner is None:
             return winner
 
-        return 1 if child.color == winner else 0
+        return 1 if self.color == winner else 0
 
     # As this function operates on the tree in place, it returns False if it
     # had to abort because of no more time, else True for success
@@ -289,23 +372,35 @@ class MCTS_UCT_Agent(Agent):
         curr_node = child
         curr_result = result
         while curr_node is not None:
-            if (time() - start_time > self.safe_limit):
-                return False
+            # if (time() - start_time > self.safe_limit):
+            #     return False
             curr_node.num_playouts += 1
             curr_node.utility += curr_result
-            curr_result = 1 - curr_result # Flip the result
+            #curr_result = 1 - curr_result # Flip the result
             curr_node = curr_node.parent # Step up to parent
 
         return True
 
+    # Display function for printing the search tree, representing node depths
+    # via indentation.
+    def print_tree(self, node, indent):
+        for _ in range(indent):
+            print("  ", end="")
+        print(str(node.utility) + "/" + str(node.num_playouts))
+        for child in node.children:
+            self.print_tree(child, indent+1)
+
 # Needed to ensure separate seeding of processes (see below link) as otherwise
 # all simulations would be the same
 # https://stackoverflow.com/questions/9209078/using-python-multiprocessing-with-different-random-seed-for-each-process
+# Credit to Professor Weiss (previous semester - Parallel Programming) for the
+# idea of getting a good seed via multiplying the current system time by the
+# process id
 def parallel_seed():
     pid = os.getpid()
     seed = pid * int(time())
     print("Process", pid, "seed:", seed)
-    random.seed()
+    random.seed(seed)
     print(random.randrange(2048))
 
 
@@ -322,6 +417,8 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         self.sim_pool = multiprocessing.Pool(processes=num_processes,
             initializer=parallel_seed)
 
+    # NOTE: ANY USAGE OF THIS AGENT MUST CALL THIS FUNCTION AT CONCLUSION
+    # Properly closes the pool of processes used for simulation
     def cleanup(self):
         self.sim_pool.close()
         self.sim_pool.join()
@@ -336,6 +433,8 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
 
         # Initialize the tree
         tree = Node(board.clone(), None, None, 0, self.color, 0, 0)
+        tree.preferred_actions = \
+            self.get_playout_agent(self.color).get_preferences(tree.state)
 
         # While there is remaining time, run the following four steps:
         # 1. select, 2. expand, 3. simulate, and 4. backpropagate
@@ -350,11 +449,13 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
             if child.depth > max_depth:
                 max_depth = child.depth
             result = self.simulate(child, start_time)
-            if result is None:
+            if result is None: # Incomplete statistics, remove the child
+                selected.children.remove(child)
                 break
             number_of_sims += self.num_processes
-            if not self.back_propagate(result, child, start_time):
-                break
+            # if not self.back_propagate(result, child, start_time):
+            #     break
+            self.back_propagate(result, child, start_time)
 
         # Update stats from this decision
         self.num_simulations.append(number_of_sims)
@@ -366,6 +467,13 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
 
         # Return best move
         best_child = self.best_child(tree, 0)
+        # print(tree.utility/tree.num_playouts)
+        # for child in tree.children:
+        #     if child.num_playouts == 0:
+        #         continue
+        #     print(child.utility / child.num_playouts)
+        # print("best:", best_child.utility / best_child.num_playouts)
+        #self.print_tree(tree, 0)
         return best_child.action
 
     # Simulate run(s) of the game from the newly added child node
@@ -381,11 +489,11 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         # CAN ADJUST THIS TO ALLOW MORE SIMULATIONS THAN PROCESSES - NEED TO
         # CHECK EVERYWHERE self.num_processes IS BEING USED HOWEVER
 
-        print(winners)
+        #print(winners)
         if any([(w is None) for w in winners]):
             return None
 
-        return sum([1 if w == child.color else 0 for w in winners])
+        return sum([1 if w == self.color else 0 for w in winners])
 
     # As this function operates on the tree in place, it returns False if it
     # had to abort because of no more time, else True for success
@@ -393,11 +501,11 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         curr_node = child
         curr_result = result
         while curr_node is not None:
-            if (time() - start_time > self.safe_limit):
-                return False
+            # if (time() - start_time > self.safe_limit):
+            #     return False
             curr_node.num_playouts += self.num_processes
             curr_node.utility += curr_result
-            curr_result = self.num_processes - curr_result # Flip the result
+            #curr_result = self.num_processes - curr_result # Flip the result
             curr_node = curr_node.parent # Step up to parent
 
         return True
