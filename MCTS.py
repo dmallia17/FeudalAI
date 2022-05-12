@@ -16,6 +16,8 @@ import math, multiprocessing, os, random
 from time import time
 from Agent import *
 from GameExecution import *
+from Heuristics import *
+from functools import partial
 
 # Node class to be used in the constructed search tree
 class Node():
@@ -187,6 +189,29 @@ playout_dict = {
     "piecegreedyrandom" : PieceGreedyRandomPlayoutAgent
 }
 
+###############################################################################
+###############################################################################
+####################        Truncation Functions       ########################
+###############################################################################
+###############################################################################
+def simple_piece_evaluation(board, royalty_weight=.66, other_weight=.33):
+    if royalty_weight * royalty_remaining(board, "blue") + \
+        other_weight * other_remaining(board, "blue") > \
+        royalty_weight * royalty_remaining(board, "brown") + \
+        other_weight * other_remaining(board, "brown"):
+        return "blue"
+    else:
+        return "brown"
+
+truncate_dict = {
+    "simplepiece" : simple_piece_evaluation
+}
+
+###############################################################################
+###############################################################################
+#########################        MCTS UCT AGENT       #########################
+###############################################################################
+###############################################################################
 class MCTS_UCT_Agent(Agent):
     # All parameters are the same as Agent with the exception of...
     # @param c                      The exploration term (C) in the UCT formula
@@ -196,12 +221,18 @@ class MCTS_UCT_Agent(Agent):
     #                               to the playout agent
     def __init__(self, color, time_limit, local_search_method,
         local_search_init_args, local_search_run_args, c, playout_class,
-        playout_class_args=dict(), verbose=False):
+        playout_class_args=dict(), verbose=False, turn_limit=None,
+        truncate_function=None):
+        if turn_limit is not None and truncate_function is None:
+            raise RuntimeError("Cannot truncate without an eval function")
         super().__init__(color, time_limit, local_search_method,
             local_search_init_args, local_search_run_args)
         self.c = c
         self.safe_limit = .9 * self.time_limit
         self.verbose = verbose
+        self.sim = partial(run_game_simulation_truncated, turn_limit,
+                truncate_dict[truncate_function]) if turn_limit else \
+                    run_game_simulation
 
         # Setup playout agents
         playout_class_args["color"] = "blue"
@@ -374,7 +405,7 @@ class MCTS_UCT_Agent(Agent):
             return None
 
         blue_turn = True if "blue" == child.color else False
-        winner, turn_count = run_game_simulation(child.state.clone(),
+        winner, turn_count = self.sim(child.state.clone(),
             self.playout_blue, self.playout_brown, blue_turn,
             start_time, self.safe_limit)
 
@@ -422,16 +453,21 @@ def parallel_seed():
     random.seed(seed)
     print(random.randrange(2048))
 
-
+###############################################################################
+###############################################################################
+#########################      MCTS UCT LP AGENT      #########################
+###############################################################################
+###############################################################################
 # Implements a simple leaf parallelization where several simulations are run
 # in the simulate phase instead of just one
 class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
     def __init__(self, color, time_limit, local_search_method,
         local_search_init_args, local_search_run_args, c, playout_class,
-        playout_class_args=dict(), verbose=False, num_processes=8):
+        playout_class_args=dict(), verbose=False, turn_limit=None,
+        truncate_function=None, num_processes=8):
         super().__init__(color, time_limit, local_search_method,
             local_search_init_args, local_search_run_args, c, playout_class,
-            playout_class_args, verbose)
+            playout_class_args, verbose, turn_limit, truncate_function)
         self.num_processes = num_processes
         self.sim_pool = multiprocessing.Pool(processes=num_processes,
             initializer=parallel_seed)
@@ -510,7 +546,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
             return None
 
         blue_turn = True if "blue" == child.color else False
-        results = self.sim_pool.starmap(run_game_simulation,
+        results = self.sim_pool.starmap(self.sim,
             [(child.state.clone(), self.playout_blue, self.playout_brown,
             blue_turn, start_time, self.safe_limit) \
                 for _ in range(self.num_processes)])

@@ -6,7 +6,7 @@
     "blue" : {
         "type" : "mcts_uct_lp",
         "args" : {
-            "time_limit" : 10,
+            "time_limit" : 3,
             "local_search_method" : "HillClimbingFirstChoice",
             "local_search_init_args" : {
                 "ways_onto_castle_green_weight" : 1,
@@ -21,15 +21,17 @@
                 "restarts" : 1
             },
             "c" : 1.4142135623730951,
-            "playout_class" : "random",
+            "playout_class" : "piecegreedyrandom",
             "verbose" : true,
-            "num_processes" : 8
+            "num_processes" : 8,
+            "turn_limit" : 40,
+            "truncate_function" : "simplepiece"
         }
     },
     "brown" : {
         "type" : "random",
         "args" : {
-            "time_limit" : 10,
+            "time_limit" : 3,
             "local_search_method" : "SimulatedAnnealing",
             "local_search_init_args" : {
                 "ways_onto_castle_green_weight" : 1,
