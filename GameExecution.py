@@ -1,6 +1,15 @@
 # Functions for running the game
 
-from time import process_time, time
+from time import time
+
+# @param    d   a dictionary in the counts format from Board
+def print_piece_counts(d):
+    royalty_line = "ROYALTY King    %d Prince    %d Duke    %d"
+    other_line =   "OTHER   Knights %d Sergeants %d Pikemen %d " + \
+        "Squire %d Archer %d"
+    print(royalty_line % (d["king"], d["prince"], d["duke"]))
+    print(other_line % (d["knight"], d["sergeant"], d["pikemen"], d["squire"],
+        d["archer"]))
 
 # Basic execution of the game in verbose fashion - showing whose turn it is and
 # displaying the board
@@ -11,13 +20,21 @@ def run_game_verbose(game_board, blue_player, brown_player, blue_turn):
 
         if blue_turn:
             print("BLUE PLAYER:")
+            # The time function may not be the most accurate for this, but it
+            # skirts any issues with multiprocessing
+            start = time()
             move = blue_player.get_choice(game_board.clone())
+            end = time()
+            print("Time elapsed:", end-start)
             for m in move:
                 if not game_board.apply_move(m[0], m[1], "blue"):
                     print("Invalid move")
         else: # Brown turn
             print("BROWN PLAYER")
+            start = time()
             move = brown_player.get_choice(game_board.clone())
+            end = time()
+            print("Time elapsed:", end-start)
             for m in move:
                 if not game_board.apply_move(m[0], m[1], "brown"):
                     print("Invalid move")
@@ -32,12 +49,19 @@ def run_game_verbose(game_board, blue_player, brown_player, blue_turn):
         print("BLUE WON")
         game_board.display()
     print("NUMBER OF TURNS:", num_turns)
+    print("BLUE PIECE COUNTS:")
+    print_piece_counts(game_board.blue_piece_counts)
+    print("BROWN PIECE COUNTS:")
+    print_piece_counts(game_board.brown_piece_counts)
 
 
 
 # Silent execution of game; returns the winner of the game as a string
+# @return   Returns the color (string) of the winner and the number of turns
+#           in the simulation
 def run_game_simulation(game_board, blue_player, brown_player, blue_turn,
     start_time, limit):
+    num_turns = 0
     while not game_board.game_over():
         if (time() - start_time > limit):
             return None
@@ -54,8 +78,9 @@ def run_game_simulation(game_board, blue_player, brown_player, blue_turn,
                     print("Invalid move")
 
         blue_turn = not blue_turn
+        num_turns += 1
 
     if game_board.blue_lost():
-        return "brown"
+        return "brown", num_turns
     else:
-        return "blue"
+        return "blue", num_turns

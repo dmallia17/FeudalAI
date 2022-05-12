@@ -212,6 +212,8 @@ class MCTS_UCT_Agent(Agent):
         # Statistics tracking
         self.num_simulations = []
         self.max_depths = []
+        self.running_turn_count = 0
+        self.avg_turn_counts = []
 
     def get_playout_agent(self, color):
         if "blue" == color:
@@ -247,6 +249,7 @@ class MCTS_UCT_Agent(Agent):
             result = self.simulate(child, start_time)
             if result is None: # Incomplete statistics, remove the child
                 selected.children.remove(child)
+                selected.num_children -= 1
                 break
             number_of_sims += 1
             # if not self.back_propagate(result, child, start_time):
@@ -256,19 +259,33 @@ class MCTS_UCT_Agent(Agent):
         # Update stats from this decision
         self.num_simulations.append(number_of_sims)
         self.max_depths.append(max_depth)
+        # Avoid division by zero
+        avg_turn_count = self.running_turn_count / number_of_sims if \
+            number_of_sims else 0
+        self.avg_turn_counts.append(avg_turn_count)
+        self.running_turn_count = 0 # Reset running_turn_count to 0
 
         if self.verbose:
             print("Number of simulations:", number_of_sims)
             print("Max search depth:", max_depth)
+            print("Average turn count:", avg_turn_count)
 
         # Return best move
         best_child = self.best_child(tree, 0)
+        if best_child is None: # I.e. no simulations were run in time
+            return board.get_random_move(self.color)[0]
         return best_child.action
 
     # Finds the "best child" either in the select phase of the algorithm or for
     # returning the final move, where the c (exploration multiplier) should be
     # set to 0
     def best_child(self, node, c):
+        # Handles the case of no simulations were run in time - return None to
+        # signal a choice must be made another way (randomly?)
+        # best_child should not otherwise end up being called for a node that
+        # has no children unless the expand function is defective
+        if (0 == node.num_children) and 0 == c:
+            return None
         if 1 == node.num_children:
             return node.children[0]
         else:
@@ -357,12 +374,14 @@ class MCTS_UCT_Agent(Agent):
             return None
 
         blue_turn = True if "blue" == child.color else False
-        winner = run_game_simulation(child.state.clone(),
+        winner, turn_count = run_game_simulation(child.state.clone(),
             self.playout_blue, self.playout_brown, blue_turn,
             start_time, self.safe_limit)
 
         if winner is None:
             return winner
+
+        self.running_turn_count += turn_count
 
         return 1 if self.color == winner else 0
 
@@ -451,6 +470,7 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
             result = self.simulate(child, start_time)
             if result is None: # Incomplete statistics, remove the child
                 selected.children.remove(child)
+                selected.num_children -= 1
                 break
             number_of_sims += self.num_processes
             # if not self.back_propagate(result, child, start_time):
@@ -460,10 +480,16 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         # Update stats from this decision
         self.num_simulations.append(number_of_sims)
         self.max_depths.append(max_depth)
+        # Avoid division by zero
+        avg_turn_count = self.running_turn_count / number_of_sims if \
+            number_of_sims else 0
+        self.avg_turn_counts.append(avg_turn_count)
+        self.running_turn_count = 0 # Reset running_turn_count to 0
 
         if self.verbose:
             print("Number of simulations:", number_of_sims)
             print("Max search depth:", max_depth)
+            print("Average turn count:", avg_turn_count)
 
         # Return best move
         best_child = self.best_child(tree, 0)
@@ -474,6 +500,8 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
         #     print(child.utility / child.num_playouts)
         # print("best:", best_child.utility / best_child.num_playouts)
         #self.print_tree(tree, 0)
+        if best_child is None: # I.e. no simulations were run in time
+            return board.get_random_move(self.color)[0]
         return best_child.action
 
     # Simulate run(s) of the game from the newly added child node
@@ -482,16 +510,21 @@ class MCTS_UCT_LP_Agent(MCTS_UCT_Agent):
             return None
 
         blue_turn = True if "blue" == child.color else False
-        winners = self.sim_pool.starmap(run_game_simulation,
+        results = self.sim_pool.starmap(run_game_simulation,
             [(child.state.clone(), self.playout_blue, self.playout_brown,
             blue_turn, start_time, self.safe_limit) \
                 for _ in range(self.num_processes)])
+        winners = [x[0] if x is not None else None for x in results]
         # CAN ADJUST THIS TO ALLOW MORE SIMULATIONS THAN PROCESSES - NEED TO
         # CHECK EVERYWHERE self.num_processes IS BEING USED HOWEVER
 
         #print(winners)
         if any([(w is None) for w in winners]):
             return None
+
+        # Tally up turn counts from each simulation
+        for tc in [x[1] for x in results]:
+            self.running_turn_count += tc
 
         return sum([1 if w == self.color else 0 for w in winners])
 
