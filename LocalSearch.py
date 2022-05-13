@@ -1,8 +1,10 @@
 # Implements base LocalSearch class and all sub-classes
 
+from itertools import combinations
 import math
 import random
 from copy import deepcopy
+from Board import *
 
 class LocalSearch():
     # @param board      an instance of the Board class - only really needed
@@ -532,8 +534,13 @@ class HillClimbingGreedy(HillClimbing):
 
 class HillClimbingFirstChoice(HillClimbing):
     def choose_successor(self, current_config):
-        # Only try a maximum of 4500 new configs
-        num_configs = 4500
+        # PREVIOUSLY:   Only try a maximum of 4500 new configs, based on
+        #               number of possible alternatives
+        # CURRENT:      Reduce to only allowing 100 configs - 4500 makes single
+        #               runs far too slow(~30+ seconds), whereas a similar
+        #               effect can (hopefully) be accomplished via multiple
+        #               restarts...(each of which would only take ~2 seconds)
+        num_configs = 100
         current_config_value = self.evaluate_config(current_config)
 
         while num_configs > 0:
@@ -579,8 +586,53 @@ class SimulatedAnnealing(LocalSearch):
             time += 1
         return current
 
+class LocalSearchOptimizer():
+    # @param step_size          The size of the "step" to take in incrementing/
+    #                           decrementing weight values - NOTE: 1 divided by
+    #                           this value MUST BE an integer.
+    # @param num_weights        How many weights are being optimized
+    # @param num_simulations    How many simulations to conduct in evaluating
+    #                           each particular set of weights.
+    # @param terrain_file       The terrain with which to instantiate the board
+    #                           used for all simulations.
+    def __init__(self, step_size=.1, num_weights=7, num_simulations=16,
+        terrain_file="terrain_3M_official_1.txt"):
+        self.step_size = step_size
+        self.num_weights = num_weights
+        self.combinations = [list(x) for x in list(
+            combinations(list(range(self.num_weights)), 2))]
+        self.board = Board()
+        self.board.parse_terrain(terrain_file)
+        self.initial_weights = [1.0 / num_weights] * num_weights
 
+    # Get a random set of weights
+    def get_random_start(self):
+        weights = [0] * self.num_weights
+        for _ in range(int(1/(self.step_size))):
+            choice = random.randrange(self.num_weights)
+            weights[choice] += self.step_size
+        return weights
 
+    def get_random_successor(self, weights):
+        # Get a pair of weights
+        swap_indices = random.choice(self.combinations)
+        # Shuffle the indices (note: this shuffles in place, modifying the
+        # pair of indices in self.combinations - however this likely doesn't
+        # add any more bias to which is incremented or decremented than
+        # reshuffling from an original ordering each time)
+        random.shuffle(swap_indices)
+        new_weights = weights[:]
+        # Increment the first term, decrement the second, by step_size
+        new_weights[swap_indices[0]] += self.step_size
+        new_weights[swap_indices[1]] -= self.step_size
+        return new_weights
 
+    # Return the win ratio for the blue player using the new weights, whereas
+    # the brown player is still using UNIFORM weights
+    def evaluate(self, weights):
+        # For the number of simulations requested
 
+    def get_weights(self):
+        weights = self.get_random_start()
 
+        #
