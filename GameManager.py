@@ -72,16 +72,16 @@ if __name__ == "__main__":
     # NORMAL SETUP
     setup_choice = game_params["setup"]
     if "local" == setup_choice:
-        config = blue_player.get_piece_placement(game_board.clone())
-        game_board.place_pieces("blue", config)
-        config = brown_player.get_piece_placement(game_board.clone())
-        game_board.place_pieces("brown", config)
+        blue_config = blue_player.get_piece_placement(game_board.clone())
+        brown_config = brown_player.get_piece_placement(game_board.clone())
+        game_board.place_pieces("blue", blue_config)
+        game_board.place_pieces("brown", brown_config)
     # FAST SETUP
     elif "random" == setup_choice:
-        config = blue_player.local_search_method.get_random_start()
-        game_board.place_pieces("blue", config)
-        config = brown_player.local_search_method.get_random_start()
-        game_board.place_pieces("brown", config)
+        blue_config = blue_player.local_search_method.get_random_start()
+        brown_config = brown_player.local_search_method.get_random_start()
+        game_board.place_pieces("blue", blue_config)
+        game_board.place_pieces("brown", brown_config)
     else:
         raise RuntimeError("Invalid setup type given")
 
