@@ -1,7 +1,7 @@
 # Implementation of the Feudal board game with some move restriction
 from itertools import combinations
 from copy import deepcopy
-import random
+import math, random
 import multiprocessing
 
 
@@ -47,6 +47,10 @@ class Board():
         self.target_counts = {"castle_green" : 1, "castle_interior" : 1,
             "king" : 1, "prince" : 1, "duke" : 1, "knight": 2, "sergeant" : 2,
             "pikemen" : 4, "squire" : 1, "archer" : 1}
+        # The maximum distance the 13 pieces could take on from the enemy
+        # castle green
+        self.max_dist_blue = 0
+        self.max_dist_brown = 0
 
     # Return a clone of the Board instance, only copying the piece dictionaries
     def clone(self):
@@ -65,6 +69,8 @@ class Board():
         new_board.brown_castle = self.brown_castle[:]
         new_board.blue_piece_counts = self.blue_piece_counts.copy()
         new_board.brown_piece_counts = self.brown_piece_counts.copy()
+        new_board.max_dist_blue = self.max_dist_blue
+        new_board.max_dist_brown = self.max_dist_brown
 
         return new_board
 
@@ -380,6 +386,25 @@ class Board():
                         "squire", configuration["squire"])
         self.add_piece(dp, dl, c, color, counts,
                         "archer", configuration["archer"])
+
+        # Update max_dist members
+        open_locs = []
+        for i in range(24):
+            for j in range(24):
+                if (i,j) in self.mountains:
+                    continue
+                open_locs.append((i,j))
+        locs_with_dist = [(l, math.dist(l, c[0])) for l in open_locs]
+        locs_with_dist = sorted(locs_with_dist, key=lambda x : x[1],
+            reverse=True)[:13]
+        final_dist = sum([ld[1] for ld in locs_with_dist])
+
+        # blue has placed its castle, so now we know max dist for brown and
+        # vice versa
+        if "blue" == color:
+            self.max_dist_brown += final_dist
+        else: # brown
+            self.max_dist_blue += final_dist
 
         return counts == self.target_counts
 
