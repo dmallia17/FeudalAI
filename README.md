@@ -66,3 +66,9 @@ blue or brown.
 - Castle interior - red background
 - Empty / normal terrain - gray background
 
+
+### Software requirements:
+This project is almost entirely base Python (>=3.8.5), with the exception of
+the value prediction network code, which requires numpy, matplotlib, and
+tensorflow, and the GameReplayViewer, which requires pynput (for easily
+capturing key presses). 
