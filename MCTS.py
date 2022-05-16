@@ -234,6 +234,13 @@ class MCTS_UCT_Agent(Agent):
         self.running_turn_count = 0
         self.avg_turn_counts = []
 
+    def get_statistics(self):
+        return {
+            "Number of simulations" : self.num_simulations[:],
+            "Max depths" : self.max_depths[:],
+            "Average turn counts" : self.avg_turn_counts[:]
+        }
+
     def get_playout_agent(self, color):
         if "blue" == color:
             return self.playout_blue

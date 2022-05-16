@@ -27,7 +27,7 @@ class Agent():
             **self.local_search_run_args)
 
     def get_statistics(self):
-        pass
+        return {}
 
 class HumanAgent(Agent):
     def get_choice(self, board):

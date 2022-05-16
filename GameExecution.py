@@ -54,6 +54,34 @@ def run_game_verbose(game_board, blue_player, brown_player, blue_turn):
     print("BROWN PIECE COUNTS:")
     print_piece_counts(game_board.brown_piece_counts)
 
+# Silent like a simulation but for gathering stats
+def run_game_trial(game_board, blue_player, brown_player, blue_turn):
+    num_turns = 0
+    game_states = [game_board.clone()]
+    while not game_board.game_over():
+
+        if blue_turn:
+            move = blue_player.get_choice(game_board.clone())
+            for m in move:
+                if not game_board.apply_move(m[0], m[1], "blue"):
+                    print("Invalid move")
+        else: # Brown turn
+            move = brown_player.get_choice(game_board.clone())
+            for m in move:
+                if not game_board.apply_move(m[0], m[1], "brown"):
+                    print("Invalid move")
+
+        blue_turn = not blue_turn
+        num_turns += 1
+        game_states.append(game_board.clone())
+
+    winner = "brown" if game_board.blue_lost() else "blue"
+    blue_stats = blue_player.get_statistics()
+    brown_stats = brown_player.get_statistics()
+
+    return winner, num_turns, game_states, blue_stats, brown_stats
+
+
 
 
 # Silent execution of game; returns the winner of the game as a string
