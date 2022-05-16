@@ -16,19 +16,19 @@ class Minimax_Agent(Agent):
         self.neg_color = "brown" if color == "blue" else "blue"
         self.color_weight = {self.color: 1, self.neg_color: -1}
         self.tt = {}
-        self.start_time = None
+        self.time_limit = .9 * time_limit
 
     def get_choice(self, board):
         self.start_time = time.process_time()
         self.tt = {}
-        return self.negamax(board)
+        return self.iter_deepening(board)
         #return self.iter_deepening(board)
 
 
     # Iterative deepening for MTD(f). 
     def iter_deepening(self, board):
         value_guess = 0
-        for depth in range(1,5):
+        for depth in range(1,4):
             (choice, value_guess) = self.MTD_F(board, value_guess, depth)
             print(depth)
             if time.process_time() - self.start_time > self.time_limit:
@@ -60,11 +60,9 @@ class Minimax_Agent(Agent):
         over = False
         nodes_pruned = 0
         transposition_hits = 0
-        useful_transposition_hits = 0
         
-        # Transposition Table
         tt = self.tt
-        
+
         # Call stack tuple arg_name -> position dictionary.
         id = {
                 "cur_depth" : 0,
@@ -80,25 +78,6 @@ class Minimax_Agent(Agent):
             }
 
         while not over:
-            # Negamax unrolled function call stack. (In order within tuple).
-            #
-            # @current depth, 
-            # @move to apply (None for root).
-            # @color of node 
-            # @max - max value of current node.
-            # @parent - reference to parent on the stack
-            # @visited - marks if node is being visited for the first time. 
-            # @saves - info needed to reverse apply a move.
-            # 
-            # Notes: 
-            # - color is the color of the current node; but the current 
-            # node performs the task of previous move application; this is a 
-            # bit tricky but allows the board to be passed by reference (it's 
-            # not even on the stack). 
-            #
-            # - parent reference is determined by the invariant that once 
-            # a parent node is pushed onto the stack, it will remain at the 
-            # same index while its children are being explored. 
             call_stack = [[0, [], self.color, alpha, beta, float('-inf'), alpha, 0, False, []]]
             while len(call_stack) > 0:
                 # Get reference to location of current node. 
@@ -150,6 +129,8 @@ class Minimax_Agent(Agent):
                         if value > maximum:        
                             maximum = value
                             choice = move
+                        over = True
+                        break
                 # Not at root node.
                 else:
                     # If node hasn't been visited, apply move.
@@ -164,11 +145,9 @@ class Minimax_Agent(Agent):
                         # Check transposition table for depth >= 2. 
                         if cur_depth >= 1:
                             key = board.get_hash_key()
-                            if key in tt and tt[key]['depth'] >= cur_depth:
+                            if key in tt and tt[key]['depth'] >= max_depth - cur_depth:
                                 tt_entry = tt[key]
                                 v = tt_entry['value']
-                                if cur_depth < max_depth:
-                                    useful_transposition_hits += 1
                                 transposition_hits += 1
                                 if tt_entry['flag'] == EQ:
                                     # return tt_entry value
@@ -287,32 +266,12 @@ class Minimax_Agent(Agent):
                             mem['flag'] = LT
                         else:
                             mem['flag'] = EQ
-                        mem['depth'] = cur_depth
+                        mem['depth'] = max_depth - cur_depth
                         tt[hash_key] = mem
 
         print("NODES PRUNED:", nodes_pruned)
         print("TRANSPOSITION HITS", transposition_hits)
-        print("USEFUL TRANSPO HITS", useful_transposition_hits)
         return (choice, maximum)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -327,8 +286,8 @@ class Minimax_Agent(Agent):
         over = False
         nodes_pruned = 0
         transposition_hits = 0
-        useful_transposition_hits = 0
         depth_limit = 1
+        max_depth = 0
         
         # Transposition Table
         tt = {}
@@ -348,25 +307,6 @@ class Minimax_Agent(Agent):
             }
 
         while not over:
-            # Negamax unrolled function call stack. (In order within tuple).
-            #
-            # @current depth, 
-            # @move to apply (None for root).
-            # @color of node 
-            # @max - max value of current node.
-            # @parent - reference to parent on the stack
-            # @visited - marks if node is being visited for the first time. 
-            # @saves - info needed to reverse apply a move.
-            # 
-            # Notes: 
-            # - color is the color of the current node; but the current 
-            # node performs the task of previous move application; this is a 
-            # bit tricky but allows the board to be passed by reference (it's 
-            # not even on the stack). 
-            #
-            # - parent reference is determined by the invariant that once 
-            # a parent node is pushed onto the stack, it will remain at the 
-            # same index while its children are being explored. 
             call_stack = [[0, [], self.color, float('-inf'), float('+inf'), float('-inf'), float('-inf'), 0, False, []]]
             while len(call_stack) > 0:
                 if time.process_time() - self.start_time > self.time_limit:
@@ -386,8 +326,10 @@ class Minimax_Agent(Agent):
                     parent_ptr, 
                     visited, 
                     saves]        = call_stack.pop()
+                max_depth = max(cur_depth, max_depth)
                 # Negated color.
                 neg_color = "brown" if color == "blue" else "blue"
+                max_depth = max(cur_depth, max_depth)
                 # If at root node.
                 if cur_depth == 0:
                     # Check visited as flag to determine if moves need to be 
@@ -436,11 +378,9 @@ class Minimax_Agent(Agent):
                         # Check transposition table for depth >= 2. 
                         if cur_depth >= 1:
                             key = board.get_hash_key()
-                            if key in tt and tt[key]['depth'] >= cur_depth:
+                            if key in tt and tt[key]['depth'] >= depth_limit - cur_depth:
                                 tt_entry = tt[key]
                                 v = tt_entry['value']
-                                if cur_depth < depth_limit:
-                                    useful_transposition_hits += 1
                                 transposition_hits += 1
                                 if tt_entry['flag'] == EQ:
                                     # return tt_entry value
@@ -518,10 +458,6 @@ class Minimax_Agent(Agent):
                                               ])
                             # Generate children.
                             for next_move in board.get_all_moves_ref(color):
-                                
-                                
-                                
-                                
                                 call_stack.append([ cur_depth+1, 
                                                     next_move[:], 
                                                     neg_color, 
@@ -563,34 +499,19 @@ class Minimax_Agent(Agent):
                             mem['flag'] = LT
                         else:
                             mem['flag'] = EQ
-                        mem['depth'] = cur_depth
+                        mem['depth'] = depth_limit - cur_depth
                         tt[hash_key] = mem
             depth_limit += 1
         print("NODES PRUNED:", nodes_pruned)
         print("TRANSPOSITION HITS", transposition_hits)
-        print("USEFUL TRANSPO HITS", useful_transposition_hits)
+        print("MAX DEPTH", max_depth)
         return choice
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
     # Implements Negamax (Minimax) algorithm.
     def negamax(self, board):
         maximum = float('-inf')
         choice = []
         over = False
-        start_time = time.process_time()
         depth_limit = 1
         nodes_pruned = 0
         max_depth = 0
@@ -630,16 +551,13 @@ class Minimax_Agent(Agent):
             # same index while its children are being explored. 
             call_stack = [[0, [], self.color, float('-inf'), float('inf'), float('-inf'), 0, False, []]]
             while len(call_stack) > 0:
-
-                if time.process_time() - start_time > self.time_limit:
+                if time.process_time() - self.start_time > self.time_limit:
                     over = True
                     break
 
                 # Get reference to location of current node. 
                 cur_ptr = len(call_stack)-1
-                #print(call_stack)
                 # Pop node from the stack.
-                #print(call_stack)
                 [   cur_depth, 
                     move, 
                     color, 
@@ -662,6 +580,8 @@ class Minimax_Agent(Agent):
                         # Generate children of root node and push onto stack. 
                         
                         
+                        #cluster = {}
+
                         for next_move in board.get_all_moves_ref(color):
                             # Check if next move is a win. 
                             saves = board.apply_moves(next_move, self.color)
@@ -673,23 +593,19 @@ class Minimax_Agent(Agent):
                                     if board.blue_lost():
                                         return next_move
 
-                            
-                            
-                            board.reverse_apply_moves(saves, self.color)
+                            # v = self.color_weight[color] * self.evaluate_node(board)
 
-                            # if continue_flag:
-                            #     continue
+                            # if v not in cluster:
+                            #     cluster[v] = [next_move]
+                            # else:
+                            #     cluster[v].append(next_move)
 
-                            #eval = self.eval_move(board, next_move, self.color)
-                            #if eval in cluster:
-                            #    cluster[eval].append(next_move)
-                            #else:
-                            #    cluster[eval] = [next_move]
-                        #for eval,moves in cluster.items():
+                            board.reverse_apply_moves(saves, color)
 
+                        # for k,v in sorted(cluster.items()):
                             call_stack.append([ 1, 
-                                                next_move[:],
-                                                #random.choice(moves)[:], 
+                                                #random.choice(cluster[k]),
+                                                next_move,
                                                 neg_color, 
                                                 -beta,
                                                 -alpha, 
@@ -753,14 +669,21 @@ class Minimax_Agent(Agent):
                             # Generate children.
                             #cluster = {}
                             for next_move in board.get_all_moves_ref(color):
-                                #eval = self.eval_move(board, next_move, color)
-                                #if eval in cluster:
-                                #    cluster[eval].append(next_move)
-                                #else:
-                                #    cluster[eval] = [next_move]
-                            #for _,moves in cluster.items():
+                                saves = board.apply_moves(next_move, color)
+                                # v = self.color_weight[color] * self.evaluate_node(board)
+
+                                # if v not in cluster:
+                                #     cluster[v] = [next_move]
+                                # else:
+                                #     cluster[v].append(next_move)
+
+                                board.reverse_apply_moves(saves, color)
+
+
+
+                            # for k,v in sorted(cluster.items()):
                                 call_stack.append([ cur_depth+1, 
-                                                    #random.choice(moves)[:], 
+                                                    #random.choice(cluster[k]),
                                                     next_move[:],
                                                     neg_color, 
                                                     -beta, 
@@ -786,6 +709,278 @@ class Minimax_Agent(Agent):
                             nodes_pruned += (len(call_stack) - parent_ptr)
                             call_stack = call_stack[:parent_ptr+1]
             # Increment depth limit (iterative deepening).
+            depth_limit += 1 
+        print("NODES PRUNED:", nodes_pruned)
+        print("MAX DEPTH REACHED:", max_depth)
+        return choice
+
+    # Implements Negamax (Minimax) algorithm.
+    def negamax_pv(self, board):
+        maximum = float('-inf')
+        choice = []
+        over = False
+        depth_limit = 1
+        nodes_pruned = 0
+        max_depth = 0
+
+        cur_pv = {"best_moves": [] }
+        prev_pv = {"best_moves": [] }
+
+        # Call stack tuple arg_name -> position dictionary.
+        id = {
+                "cur_depth" : 0,
+                "move"      : 1,
+                "color"     : 2,
+                "alpha"     : 3,
+                "beta"      : 4,
+                "value"     : 5,
+                "parent_ptr": 6,
+                "visited"   : 7,
+                "saves"     : 8,
+                "prev_pv"   : 9,
+                "cur_pv"    : 10
+            }
+        while not over:
+            call_stack = [  [0, 
+                            [], 
+                            self.color, 
+                            float('-inf'), 
+                            float('inf'), 
+                            float('-inf'), 
+                            0, 
+                            False, 
+                            [],
+                            prev_pv,
+                            cur_pv
+                            ]
+                        ]
+            while len(call_stack) > 0:
+                if time.process_time() - self.start_time > self.time_limit:
+                    over = True
+                    break
+
+
+                # Get reference to location of current node. 
+                cur_ptr = len(call_stack)-1
+                # Pop node from the stack.
+                [   cur_depth, 
+                    move, 
+                    color, 
+                    alpha,
+                    beta,
+                    value, 
+                    parent_ptr, 
+                    visited, 
+                    saves,
+                    prev_pv,
+                    cur_pv]        = call_stack.pop()
+                if cur_depth > max_depth:
+                    max_depth = cur_depth
+                neg_color = "brown" if color == "blue" else "blue"
+                # If at root node.
+                if cur_depth == 0:
+                    # Check visited as flag to determine if moves need to be 
+                    # generated (Since root move is initially None). 
+                    if False == visited:
+                        # First push the root back onto the stack. 
+                        call_stack.append([0, [], color, alpha, beta, value, cur_ptr, True, [], prev_pv, cur_pv])
+                        
+                        # Generate children of root node and push onto stack.    
+                        for next_move in board.get_all_moves_ref(color):
+                            
+                            # Skip over PV moves. 
+                            if tuple(next_move) in prev_pv['best_moves']:
+                                continue
+
+                            # Check if next move is a win. 
+                            saves = board.apply_moves(next_move, self.color)
+                            if board.game_over():
+                                if self.color == "blue":
+                                    if board.brown_lost():
+                                        return next_move
+                                else:
+                                    if board.blue_lost():
+                                        return next_move
+                            board.reverse_apply_moves(saves, self.color)
+
+                            next_prev_pv = {"best_moves": [] }
+                            if tuple(next_move) in prev_pv:
+                                next_prev_pv = prev_pv[tuple(next_move)]
+
+                            call_stack.append([ 1, 
+                                                next_move[:],
+                                                neg_color, 
+                                                -beta,
+                                                -alpha, 
+                                                float('-inf'),
+                                                cur_ptr,
+                                                False,
+                                                [],
+                                                next_prev_pv,
+                                                { "best_moves"    : []}
+                                            ])
+                        # Next consider PV nodes.
+                        if len(prev_pv['best_moves']) > 0:
+                            for next_move in prev_pv['best_moves']:
+
+                                # Check if next move is a win. 
+                                saves = board.apply_moves(next_move, self.color)
+                                if board.game_over():
+                                    if self.color == "blue":
+                                        if board.brown_lost():
+                                            return next_move
+                                    else:
+                                        if board.blue_lost():
+                                            return next_move
+                                board.reverse_apply_moves(saves, self.color)
+
+                                next_prev_pv = {"best_moves": [] }
+                                if tuple(next_move) in prev_pv:
+                                    next_prev_pv = prev_pv[tuple(next_move)]
+
+                                call_stack.append([ 1, 
+                                                next_move,
+                                                neg_color, 
+                                                -beta,
+                                                -alpha, 
+                                                float('-inf'),
+                                                cur_ptr,
+                                                False,
+                                                [],
+                                                next_prev_pv,
+                                                { "best_moves"    : []}
+                                                ])
+                    # Otherwise we are done with current depth-limit 
+                    # iteration. Update max. 
+                    else:
+                        if value > maximum:        
+                            maximum = value
+                            choice = move
+                        prev_pv = cur_pv
+                        cur_pv = { "best_moves"    : [] }
+                # Not at root node.
+                else:
+                    # If node hasn't been visited, apply move.
+                    if not visited:
+                        for piece_move in move:
+                            save = board.apply_move_retState(piece_move[0], 
+                                                             piece_move[1], 
+                                                             neg_color)
+                            saves.append(save)
+                        # Check if at depth-limit or terminal node.
+                        if board.game_over() or cur_depth == depth_limit:
+                            if board.game_over():
+                                if self.color == "brown" and board.brown_lost():
+                                    value = self.color_weight[color] * -10.0
+                                if self.color == "brown" and board.blue_lost():
+                                    value = self.color_weight[color] * 10.0
+                                if self.color == "blue" and board.blue_lost():
+                                    value = self.color_weight[color] * -10.0
+                                if self.color == "blue" and board.brown_lost():
+                                    value = self.color_weight[color] * 10.0
+                            else:
+                                value = self.color_weight[color] * self.evaluate_node(board)
+
+                            # Push terminal node back onto stack (with visited flag set).
+                            call_stack.append([ cur_depth,
+                                                move[:],
+                                                color,
+                                                alpha,
+                                                beta,
+                                                value, 
+                                                parent_ptr,
+                                                True,
+                                                saves,
+                                                prev_pv,
+                                                cur_pv
+                                              ])
+                        # Otherwise generate children.
+                        else:
+                            # Push node back onto stack with visited flag set. 
+                            call_stack.append([ cur_depth,
+                                                move[:],
+                                                color,
+                                                alpha,
+                                                beta, 
+                                                value,
+                                                parent_ptr,
+                                                True,
+                                                saves,
+                                                prev_pv, 
+                                                cur_pv
+                                              ])
+                            for next_move in board.get_all_moves_ref(color):
+                                # Skip over PV moves. 
+                                if tuple(next_move) in prev_pv['best_moves']:
+                                    continue
+                                
+                                next_prev_pv = {"best_moves": [] }
+                                if tuple(next_move) in prev_pv:
+                                    next_prev_pv = prev_pv[tuple(next_move)]
+
+                                call_stack.append([ cur_depth+1, 
+                                                    next_move[:],
+                                                    neg_color, 
+                                                    -beta, 
+                                                    -alpha,
+                                                    float('-inf'),
+                                                    cur_ptr,
+                                                    False,
+                                                    [],
+                                                    next_prev_pv,
+                                                    { "best_moves"    : []}
+                                                ])
+                            # Next consider PV nodes.
+                            if len(prev_pv['best_moves']) > 0:
+                                for next_move in prev_pv['best_moves']:
+                                    # Check if next move is a win. 
+                                    saves = board.apply_moves(next_move, self.color)
+                                    if board.game_over():
+                                        if self.color == "blue":
+                                            if board.brown_lost():
+                                                return next_move
+                                        else:
+                                            if board.blue_lost():
+                                                return next_move
+                                    board.reverse_apply_moves(saves, self.color)
+
+                                    next_prev_pv  = {"best_moves": [] }
+                                    if tuple(next_move) in prev_pv:
+                                        next_prev_pv = prev_pv[tuple(next_move)]
+
+                                    call_stack.append([ 1, 
+                                                    next_move,
+                                                    neg_color, 
+                                                    -beta,
+                                                    -alpha, 
+                                                    float('-inf'),
+                                                    cur_ptr,
+                                                    False,
+                                                    [],
+                                                    next_prev_pv,
+                                                    { "best_moves"    : []}
+                                                    ])
+                    # Otherwise node has been visited, undo moves and propagate values up. 
+                    else:
+                        for i in range(len(saves)-1, -1, -1):
+                            board.reverse_apply_move(saves[i], neg_color)
+                        if -value > call_stack[parent_ptr][id["value"]]:
+                            call_stack[parent_ptr][id["value"]] = -value
+                            if cur_depth == 1:
+                                call_stack[parent_ptr][id["move"]] = move
+                        if -value > call_stack[parent_ptr][id["alpha"]]:
+                            call_stack[parent_ptr][id["alpha"]] = -value
+                            for i in range(parent_ptr, cur_ptr):
+                                call_stack[i][id["alpha"]] = -value
+                            # Update parent PV to include this move. 
+                            call_stack[parent_ptr][id["cur_pv"]]["best_moves"].append(move)
+                        if call_stack[parent_ptr][id["alpha"]] >= call_stack[parent_ptr][id["beta"]]:
+                            nodes_pruned += (len(call_stack) - parent_ptr)
+                            call_stack = call_stack[:parent_ptr+1]
+                        
+                        # Update parent PV to include child's PV. 
+                        call_stack[parent_ptr][id["cur_pv"]][tuple(move)] = cur_pv
+            # Increment depth limit (iterative deepening).
             depth_limit += 1
         print("NODES PRUNED:", nodes_pruned)
         print("MAX DEPTH REACHED:", max_depth)
@@ -802,7 +997,10 @@ class Minimax_Agent(Agent):
 
 
 
-# Implements Negamax (Minimax) algorithm.
+
+
+
+    # Implements Negamax (Minimax) algorithm.
     def negamax_move_ordering(self, board):
         maximum = float('-inf')
         choice = []
@@ -854,9 +1052,7 @@ class Minimax_Agent(Agent):
 
                 # Get reference to location of current node. 
                 cur_ptr = len(call_stack)-1
-                #print(call_stack)
                 # Pop node from the stack.
-                #print(call_stack)
                 [   cur_depth, 
                     move, 
                     color, 
@@ -894,7 +1090,6 @@ class Minimax_Agent(Agent):
 
 
                         ordered.sort(key= lambda tup:tup[1], reverse=True)
-                        print(cur_depth, ordered)
                         for next_move in ordered:
                             call_stack.append([ 1, 
                                                 next_move[0][:],
@@ -911,6 +1106,7 @@ class Minimax_Agent(Agent):
                         if value > maximum:        
                             maximum = value
                             choice = move
+                            depth_limit += 1
                 # Not at root node.
                 else:
                     # If node hasn't been visited, apply move.
@@ -962,13 +1158,12 @@ class Minimax_Agent(Agent):
                             for next_move in board.get_all_moves_ref(color):
                                 saves = board.apply_moves(next_move, color)
                                 ordered.append( (next_move, self.color_weight[color] * self.evaluate_node(board)))
-                                
                                 board.reverse_apply_moves(saves, color)
-
+                            
                             ordered.sort(key= lambda tup:tup[1])
-                            print(cur_depth, ordered)
-                            for next_move in ordered:
 
+
+                            for next_move in ordered:
                                 call_stack.append([ cur_depth+1, 
                                                     next_move[0][:],
                                                     neg_color, 
@@ -994,10 +1189,6 @@ class Minimax_Agent(Agent):
                         if call_stack[parent_ptr][id["alpha"]] >= call_stack[parent_ptr][id["beta"]]:
                             nodes_pruned += (len(call_stack) - parent_ptr)
                             call_stack = call_stack[:parent_ptr+1]
-
-
-            # Increment depth limit (iterative deepening).
-            depth_limit += 1
         print("NODES PRUNED:", nodes_pruned)
         print("MAX DEPTH REACHED:", max_depth)
         return choice
@@ -1050,10 +1241,8 @@ class Minimax_Agent(Agent):
 
     def in_enemy_castle(self, board, friendly_locs, enemy_castle):
         if enemy_castle[0] in friendly_locs:
-            for next_move in board.get_all_moves_ref(self.neg_color):
-                for move in next_move:
-                    if move[1] == enemy_castle[0]:
-                        return 0    
+            if str(friendly_locs[enemy_castle[0]]) == "archer":
+                return 0.0
             return 1
         else:
             return 0.0 
@@ -1082,19 +1271,25 @@ class Minimax_Agent(Agent):
             enemy_locs = board.brown_pieces_locations
             friendly_pieces = board.blue_pieces
         
-        value = 0.0
-        v1 = self.enemy_royalty_count(enemy_counts)
-        v2 = self.enemy_pieces_remaining(enemy_counts)
-        v3 = self.in_enemy_castle(board, friendly_locs, enemy_castle)
-        v4 = self.enemy_in_castle(enemy_locs, friendly_castle)
-        v5 = self.friendly_pieces_remaining(friendly_counts)
-        v6 = self.friendly_royalty_count(friendly_counts)
-        v7 = self.friendly_royalty_avengeable(board, friendly_pieces, friendly_locs, friendly_counts)
-        v8 = self.proximity_pieces(friendly_locs, friendly_castle)
-        v9 = distance_to_enemy_castle(board, self.color)
-        #print(.175*v1 + .175*v2 + .125*v3 + .1*v4 + .1*v5 + .125*v6 + .1*v7 + .1*v8)
-        return v1+ v2 + v9
+        # #value = 0.0
+        # v1 = self.enemy_royalty_count(enemy_counts)
+        # v2 = self.enemy_pieces_remaining(enemy_counts)
+        v6 = self.in_enemy_castle(board, friendly_locs, enemy_castle)
+        # #v4 = self.enemy_in_castle(enemy_locs, friendly_castle)
+        # v5 = self.friendly_pieces_remaining(friendly_counts)
+        # v6 = self.friendly_royalty_count(friendly_counts)
+        # #v7 = self.friendly_royalty_avengeable(board, friendly_pieces, friendly_locs, friendly_counts)
+        # #v8 = self.proximity_pieces(friendly_locs, friendly_castle)
+        # #v9 = distance_to_enemy_castle(board, self.color)
+        # return v1 + v2 + v5 + v6 + v3
         
+        v1 = royalty_remaining(board, self.color)
+        v2 = 1 - royalty_remaining(board, self.neg_color)
+        v3 = other_remaining(board, self.color)
+        v4 = 1 - other_remaining(board, self.neg_color)
+        v5 = distance_to_enemy_castle(board, self.color)
+        return .35*v1 + .35*v2 + .05*v3 + .05*v4 + .1*v5 + .1*v6 
+
     def friendly_royalty_avengeable(self, board, pieces, friendly_locs, friendly_counts):
         royalty_locs_covered = set()
         upper_bound = friendly_counts["king"] + friendly_counts["prince"] + friendly_counts["duke"]

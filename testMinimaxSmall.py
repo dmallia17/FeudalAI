@@ -4,21 +4,17 @@ from Minimax import *
 
 if __name__ == "__main__":
     b3 = Board()
-    b3.parse_terrain("cage_terrain.txt")
+    b3.parse_terrain("terrain_3M_official_1.txt")
     blue_searcher = HillClimbingFirstChoice(b3, "blue")
     brown_searcher = HillClimbingFirstChoice(b3, "brown")
 
-    blue_config = {
-        "king": (11,16)
-    }
+    blue_random = blue_searcher.get_random_start()
+    brown_random = brown_searcher.get_random_start()
 
-    brown_config = {
-        "king": (12,16)
-    }
-
-    b3.place_some_pieces("blue", blue_config)
-    b3.place_some_pieces("brown", brown_config)
+    b3.place_pieces("blue", blue_random)
+    b3.place_pieces("brown", brown_random)
     b3.display()
+
     
     agent = Minimax_Agent("brown", 5.0, None,None,None)
 

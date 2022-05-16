@@ -3,6 +3,7 @@ from itertools import combinations
 from copy import deepcopy
 import math, random
 import multiprocessing
+import json
 
 
 def external_count_moves(pieces_combo, board):
@@ -776,6 +777,24 @@ class Board():
             current_piece.location = new_location
 
         return True
+
+    def get_hash_key(self):
+        blue_locs = {}
+        for piece in self.blue_pieces:
+            blue_locs[str(piece)] = str(piece.location)
+        brown_locs = {}
+        for piece in self.brown_pieces:
+            brown_locs[str(piece)] = str(piece.location)
+        
+        for key in self.blue_piece_counts:
+            if key == "castle_green" or key == "castle_interior":
+                continue
+            if key not in blue_locs:
+                blue_locs[key] = str((-1,-1))
+            if key not in brown_locs:
+                brown_locs[key] = str((-1,-1))
+        
+        return json.dumps(blue_locs, sort_keys=True) + json.dumps(brown_locs, sort_keys=True)
 
     # Apply move and return pre-move state.
     def apply_move_retState(self, origin, new_location, color):
