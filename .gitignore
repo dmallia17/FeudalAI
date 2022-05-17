@@ -3,3 +3,4 @@ __pycache__
 .*.swo
 .vscode
 .DS_Store
+*.pkl
