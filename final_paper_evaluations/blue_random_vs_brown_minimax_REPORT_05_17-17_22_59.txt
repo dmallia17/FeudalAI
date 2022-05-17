@@ -1,0 +1,37 @@
+blue_random_vs_brown_minimax Report 05_17-17_22_59
+Number of trials conducted: 10
+RANDOM won 0 out of 10 games
+MINIMAX won 10 out of 10 games
+Minimum game length was 3 turns
+Maximum game length was 37 turns
+Average game length was 14.2 turns
+
+
+BLUE STATS REPORT:
+
+BROWN STATS REPORT:
+max depth:
+MIN 3
+MAX 3
+AVG 3.0
+
+nodes reached:
+MIN 56349
+MAX 889623
+AVG 242007.2837837838
+
+nodes expanded:
+MIN 228
+MAX 3744
+AVG 1052.4864864864865
+
+nodes pruned:
+MIN 0
+MAX 868587
+AVG 189866.51351351352
+
+TT hits:
+MIN 5592
+MAX 34018
+AVG 21087.716216216217
+

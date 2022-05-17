@@ -1,0 +1,26 @@
+blue_MCTS_UCT_LP_vs_brown_random Report 0516-113305
+Number of trials conducted: 1
+MCTS_UCT_LP won 1out of 1 games
+RANDOM won 0out of 1 games
+Minimum game length was 33 turns
+Maximum game length was 33 turns
+Average game length was 33.0 turns
+
+
+BLUE STATS REPORT:Number of simulations:
+MIN 136
+MAX 1832
+AVG 155.3939393939394
+
+Max depths:
+MIN 1
+MAX 1
+AVG 0.5151515151515151
+
+Average turn counts:
+MIN 2.682314410480349
+MAX 39.35227272727273
+AVG 17.41898077002629
+
+
+\BROWN STATS REPORT:

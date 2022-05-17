@@ -1,0 +1,12 @@
+blue_random_vs_brown_random Report 05_17-16_48_34
+Number of trials conducted: 10
+RANDOM won 5 out of 10 games
+RANDOM won 5 out of 10 games
+Minimum game length was 975 turns
+Maximum game length was 2519 turns
+Average game length was 1632.9 turns
+
+
+BLUE STATS REPORT:
+
+BROWN STATS REPORT:

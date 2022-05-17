@@ -1,0 +1,12 @@
+blue_PureGreedy_vs_brown_random Report 05_17-17_04_26
+Number of trials conducted: 10
+PUREGREEDYRANDOM won 10 out of 10 games
+RANDOM won 0 out of 10 games
+Minimum game length was 21 turns
+Maximum game length was 138 turns
+Average game length was 51.0 turns
+
+
+BLUE STATS REPORT:
+
+BROWN STATS REPORT:

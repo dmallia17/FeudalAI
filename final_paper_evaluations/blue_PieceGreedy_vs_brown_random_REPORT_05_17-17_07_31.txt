@@ -1,0 +1,12 @@
+blue_PieceGreedy_vs_brown_random Report 05_17-17_07_31
+Number of trials conducted: 10
+PIECEGREEDYRANDOM won 10 out of 10 games
+RANDOM won 0 out of 10 games
+Minimum game length was 24 turns
+Maximum game length was 120 turns
+Average game length was 56.7 turns
+
+
+BLUE STATS REPORT:
+
+BROWN STATS REPORT:
