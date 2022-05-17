@@ -400,12 +400,14 @@ class MCTS_UCT_Agent(Agent):
             return None
 
         blue_turn = True if "blue" == child.color else False
-        winner, turn_count = self.sim(child.state.clone(),
+        temp_res = self.sim(child.state.clone(),
             self.playout_blue, self.playout_brown, blue_turn,
             start_time, self.safe_limit)
 
-        if winner is None:
-            return winner
+        if temp_res is None:
+            return temp_res
+        else:
+            winner, turn_count = temp_res
 
         self.running_turn_count += turn_count
 
