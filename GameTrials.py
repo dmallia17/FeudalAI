@@ -127,7 +127,7 @@ if __name__ == "__main__":
             all_stat += game[stat]
         blue_final_report[stat]["MIN"] = min(all_stat)
         blue_final_report[stat]["MAX"] = max(all_stat)
-        blue_final_report[stat]["AVG"] = sum(all_stat) / total_turns
+        blue_final_report[stat]["AVG"] = sum(all_stat) / len(all_stat)
 
     brown_final_report = {}
     for stat in brown_stats_all[0].keys():
@@ -137,7 +137,7 @@ if __name__ == "__main__":
             all_stat += game[stat]
         brown_final_report[stat]["MIN"] = min(all_stat)
         brown_final_report[stat]["MAX"] = max(all_stat)
-        brown_final_report[stat]["AVG"] = sum(all_stat) / total_turns
+        brown_final_report[stat]["AVG"] = sum(all_stat) / len(all_stat)
 
     timepoint = datetime.datetime.now().strftime("%m_%d-%H_%M_%S")
     fname = config_name + "_REPORT_" + timepoint + ".txt"
