@@ -72,3 +72,20 @@ This project is almost entirely base Python (>=3.8.5), with the exception of
 the value prediction network code, which requires numpy, matplotlib, and
 tensorflow, and the GameReplayViewer, which requires pynput (for easily
 capturing key presses). 
+
+### How to run:
+As mentioned above, there are no requirements for basic execution of the game,
+and this can be done simply with:
+
+```
+python3 GameManager.py <config>
+```
+
+where config is one of the configs available in the configs folder, or you can
+create a new one using any combination of available agents, varying their
+parameters.
+
+Additional utility scripts are available: GameTrials.py for gathering
+gameplay statistics (generally over multiple runs of silent - i.e. no
+board displaying - gameplay) and GameReplayViewer.py to watch back one of the
+game replays saved as a .pkl file by GameTrials.py. 
