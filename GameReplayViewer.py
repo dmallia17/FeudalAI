@@ -15,6 +15,7 @@ def on_press(key):
     global quit, display_new, displaying, index
 
     if(hasattr(key,'char') and key.char == 'q'):
+        quit = True
         return False # closes the Listener
 
     if(hasattr(key,'char') and key.char == 'n'):
