@@ -20,8 +20,20 @@ More information can be found here:
 - [Feudal on Wikipedia](https://en.wikipedia.org/wiki/Feudal_(game))
 - [Feudal on Board Game Geek](https://boardgamegeek.com/boardgame/847/feudal)
 
+### Gameplay AI
+Given that Feudal has a setup phase before general play, we implement two
+primary agent components:
+- Local search for setup, either a variant of **Hill Climbing** or
+**Simulated Annealing**; given a lack of preexisting knowledge for how to score
+setups, we include an optimizer based on simulated gameplay for identifying an
+appropriate local search score based on a few simple heuristics.
+- Tree-based search for gameplay, either a variant of **Minimax** (e.g.
+transposition tables and alpha beta pruning) or **Monte Carlo Tree Search**
+(e.g. truncated gameplay and parallel simulations).
 
-### Restrictions
+Selection of agent types and their behaviors is performed via JSON input files.
+
+### Game Restrictions
 - We are restricting the number of moves possible in a single turn, and
 requiring that the moves specified adhere to the order of how pieces are
 specified in the game manual (this "ordering" is not meaningful in the
